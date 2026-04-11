@@ -734,6 +734,8 @@ rules:
   # 私有地址直连
   - RULE-SET,private_ip,DIRECT,no-resolve
   - RULE-SET,private_domain,DIRECT
+  # 个人规则：lth.hk 直连
+  - RULE-SET,prdiy_domain,DIRECT
 
   # ── AI 平台 ──────────────────────────────────────────────────
   - RULE-SET,claude_domain,🤖 Claude 32.x
@@ -820,6 +822,12 @@ rule-providers:
   private_ip:
     <<: *ip
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"
+
+  # ── 个人规则维护 DIY（prdiy）：推送 configs/rulesets/prdiy.yaml 后 raw URL 需一致 ━
+  prdiy_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/hellohongyun/network/refs/heads/main/configs/rulesets/prdiy.yaml"
+    format: yaml
 
   # ── AI ───────────────────────────────────────────────────────
   claude_domain:
