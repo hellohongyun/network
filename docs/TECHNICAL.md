@@ -1,8 +1,8 @@
 # 技术规范文档
 
 > 项目：Mihomo 多网段精细分流配置  
-> 版本：v4  
-> 最后更新：2026-04-10
+> 版本：v5  
+> 最后更新：2026-04-11
 
 ---
 
@@ -159,9 +159,10 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 
 ```yaml
 # 定义锚点（放在第八节"代理组锚点"）
+# 每个梯队的 use: 包含该梯队所有机场，url-test 跨机场选最快
 sub_ut_c: &sub_ut_c
   type: url-test
-  use: [AirportC]
+  use: [CrossWall, DuoBaoYiYuan]  # 主力梯队：多机场
   url: https://www.gstatic.com/generate_204
   interval: 300
 
@@ -219,7 +220,7 @@ curl -sL -o /dev/null -w "%{http_code}" "URL地址"
 curl -I "订阅URL"
 
 # 如果超时，域名可能被墙，改为借道已有机场拉取：
-proxy: AirportA   # 替代原来的 proxy: DIRECT
+proxy: CrossWall   # 替代原来的 proxy: DIRECT
 ```
 
 ### 5.3 某地区子组为空
@@ -231,9 +232,22 @@ proxy: AirportA   # 替代原来的 proxy: DIRECT
 ### 5.4 健康检查通过但网站不通
 
 原因：健康检查只测试 `gstatic.com/generate_204`，不代表所有网站都能访问。
-解决：将默认出口的地区组从省流版（C→B→A）改为稳定版★（A→B→C），已在 v4 修复。
+解决：将默认出口的地区组从省流版（C→B→A）改为稳定版★（A→C→B），已在 v4/v5 修复。
 
 ## 6. 版本变更日志
+
+### v5（2026-04-11）
+
+| 变更项 | 原值 | 新值 | 原因 |
+|--------|------|------|------|
+| 机场数量 | 3 个（AirportA/B/C） | 5 个（CrossWall/DuoBaoYiYuan/YiYuan/Kitty/YunTu） | 阶梯式多机场分层 |
+| 梯队设计 | 每层 1 个机场 | 每层 1~2 个机场，层内 url-test 跨机场选最快 | 层内多机场冗余 |
+| 稳定版★ fallback | A→B→C | A→C→B | C(主力)质量优于B(保底)，挂了先落主力 |
+| 优质梯队 tolerance | 50ms | 100ms | AI 长对话减少不必要的节点切换 |
+| 故障转移 filter | 6 个排除词 | 9 个排除词（+地址/客户端/紧急备用） | 适配新机场的信息节点 |
+| 德国 filter | 无 Deutschland | 增加 Deutschland 匹配 | Kitty 机场使用德语命名 |
+| v4 typo 修复 | `英国住宅-35"d` | `英国住宅-35"` | 去掉多余字符 |
+| v4 typo 修复 | 注释 `A→B→A` | 注释 `A→C→B` | 修正注释笔误 |
 
 ### v4（2026-04-10）
 
