@@ -1,0 +1,501 @@
+https://wiki.metacubex.one/config/ 说明文档
+https://raw.githubusercontent.com/qichiyuhub/rule/refs/heads/main/config/mihomo/configdns.yaml  配置参考文件
+https://github.com/ACL4SSR/ACL4SSR/tree/master/Clash github仓库的模板
+https://github.com/MetaCubeX/meta-rules-dat/tree/meta/geo-lite yaml规则集地址
+https://github.com/blackmatrix7/ios_rule_script/tree/master/rule/Clash yaml规则集地址
+https://raw.githubusercontent.com/usbog232/clashmetadingyue/main/new-meta.ini   精细分流配置好的自定义模版链接
+
+请先全部阅读后理解清楚了在开始写配置文件，不然主人（我）会变成小狗
+
+我需要自定义yaml配置文件
+# 需求
+我有多个订阅机场价格不一样，速度和稳定性也不一样需要你来帮我定制配置文件
+# 目标
+实现多设备多网站平台的安全上网，多网段实现一网段对应一定制网络对应设备
+#网络架构
+192.168.31.x 做成网络直链，不管任何设备wifi连接都是直链
+192.168.32.x 做成规则代理，任何设备连接都可以按照规则走代理或者直链
+192.168.33.x 做成全局代理，任何设备连接都是走代理
+192.168.34.x ~ 192.168.255.x 做成特殊网络，链式代理购买的静态住宅ip
+## 192.168.31.x
+不管手机还是电脑连接都是直链
+## 192.168.32.x
+不管手机还是电脑连接安装规则和策略，按照不同ip和平台代理不同节点
+比如 Google 选择多个国家的自选节点，claude走选择多个国家的自选节点，
+YouTube可以选择多个国家的自选节点，Telegram走选择多个国家的自选节点等等
+## 192.168.33.x
+不管手机还是电脑连接都是全局代理
+##192.168.34.x ~ 192.168.255.x
+以后有购买的静态住宅ip 可以配置到对应的ip段。实现多个wifi连接多个设备
+比如 192.168.34.x 配置了美国静态住宅ip，连接这个wifi就可以实现使用ip
+# 注意事项
+1. wifi和网段已创建好只差yaml
+2. 需要的信息问我。
+
+
+
+好的，我先把所有文档和参考文件全部读完，再开始动笔！很好，文档和模板都读完了！在开始写之前我还需要几个关键信息：稍等你的回答，我会根据这三个问题生成完全定制的配置。同时请告诉我：
+
+1. **各机场的订阅 URL**（直接发给我，我会填入配置）
+2. **面板访问密码**（`external-controller` 的 secret，不想要就留空）
+3. **已有住宅 IP 的话**：地址、端口、用户名密码（没有的话我先写占位符，以后填）
+
+
+
+
+Q: 你有几个机场订阅？（决定 proxy-providers 数量）
+A: 3个，但是有个问题是写节点信息死在了yaml文件中，如果节点更新了那就怎么更新？
+
+Q: 路由器用的是什么系统？（影响 TUN 模式配置）
+A: 一个运行在 OpenWrt 上的 Mihomo(Clash) 客户端，兼容 Shadowsocks(R)、Vmess、Trojan、Snell 等协议，根据灵活的规则配置实现策略代理
+
+Q: 需要哪些应用的精细分流？（多选） (Select all that apply)
+A: Google全系, Claude / ChatGPT / AI, YouTube / Netflix / TikTok, Telegram / Twitter / Instagram, GitHub / Microsoft / Apple, 未来还有很多平台
+
+
+
+
+好问题！先解答你的疑虑：**节点信息不会写死在 YAML 里**。`proxy-providers` 只填订阅 URL，mihomo 按 `interval` 自动拉取更新，节点变了自动同步，跟客户端订阅是一样的逻辑。现在开始写配置！配置文件已生成！下面是完整说明：
+
+---
+
+## 关于你的核心问题：节点会不会写死？
+
+**完全不会。** 用的是 `proxy-providers`：
+
+```yaml
+AirportA:
+  type: http
+  url: "你的订阅链接"   # ← 只有这一行需要填
+  interval: 86400        # 每24小时自动拉取更新
+```
+
+节点存在 mihomo 的缓存目录里，配置文件只存 URL。机场换节点 → mihomo 自动同步，你什么都不用改。
+
+---
+
+## 四网段架构实现方式
+
+配置里用 `SRC-IP-CIDR` 源IP匹配，在**所有域名规则之前**执行：
+
+| 网段 | 规则行 | 效果 |
+|------|--------|------|
+| 192.168.31.x | `SRC-IP-CIDR,192.168.31.0/24,DIRECT` | 直链出网 |
+| 192.168.32.x | 无拦截，继续向下匹配 | 全规则分流 |
+| 192.168.33.x | `SRC-IP-CIDR,192.168.33.0/24,🌐 全局代理` | 强制代理 |
+| 192.168.34.x | `SRC-IP-CIDR,192.168.34.0/24,🏠 住宅IP-34` | 住宅IP出口 |
+
+---
+
+## 你需要填写的地方（搜索 `★`）
+
+1. **面板密码**：`secret: "★填写面板密码★"`
+2. **三个机场订阅 URL**：`AirportA / B / C` 的 `url` 字段
+3. **住宅IP信息**（有的话）：`proxies` 里的 server/port/username/password
+4. **住宅IP没买**：把 34.x 那条 `SRC-IP-CIDR` 注释掉，等买了再填
+
+---
+
+## 如何扩展新平台/新网段
+
+- **新平台**：在 `rules` 里加一行 `- RULE-SET,xxx,策略组`，在 `rule-providers` 里加对应规则集 URL
+- **新住宅IP网段**：在 `proxies` 加节点，在 `proxy-groups` 加策略组，取消 35.x/36.x 那行的注释
+
+
+
+https://raw.githubusercontent.com/usbog232/clashmetadingyue/main/new-meta.ini
+已经改完了，请参考这个连接对一下规则。
+https://youtu.be/KDExZ1j4xfo 这个是油管配置教程
+
+看一下配置文件我改的对不对。
+
+
+
+
+
+看完了，配置改得基本正确！填写的订阅链接和住宅IP格式都对。发现了**1个需要修复的bug**和几个建议：
+
+---
+
+## ❌ 必须修复：`claude_domain` 规则集格式错误
+
+```yaml
+# 错误写法（现在的）
+claude_domain:
+  <<: *domain          # behavior: domain, format: mrs  ← 继承了这个
+  url: "...Claude.yaml"
+  format: yaml         # 只覆盖了format，behavior还是domain → 不匹配！
+
+# ✅ 正确写法
+claude_domain:
+  <<: *classical       # behavior: classical ← blackmatrix7 的yaml是classical格式
+  url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Claude/Claude.yaml"
+  format: yaml
+```
+
+**原因**：blackmatrix7 的 Claude.yaml 内容是 `DOMAIN,xxx` / `DOMAIN-SUFFIX,xxx` 这种 classical 格式，不是纯 domain behavior。用错 behavior 会导致规则完全不生效，Claude 流量走漏。
+
+---
+
+## ⚠️ 对比 new-meta.ini 发现的缺失项
+
+new-meta.ini 比你的配置多了几个实用规则，建议补上：
+
+**Cloudflare 分流**（很多网站/API走CF，单独处理更干净）：
+
+在 `rules` 的 `# 搜索 & 开发` 前加：
+```yaml
+  - RULE-SET,cloudflare_domain,🚀 默认出口
+```
+
+在 `rule-providers` 加：
+```yaml
+  cloudflare_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cloudflare.mrs"
+```
+
+---
+
+## ✅ 改得正确的地方
+
+- 三个机场订阅 URL 格式填写正确
+- 住宅IP `socks5` 配置格式无误（server/port/username/password 都对）
+- `secret: ""` 留空完全合法
+- 所有 `SRC-IP-CIDR` 网段路由位置正确（在所有规则最前面）
+- `exclude-filter` 节点清洗规则保留了 ✓
+
+---
+
+## 🔒 安全提醒
+
+你在消息里贴出了**真实的订阅链接和住宅IP认证信息**（用户名 `adsrsccazw` / 密码 `ortmitymoyrmotr`），这些信息现在存在对话记录里。建议：
+1. **立即去机场后台重置订阅 Token**（AirportA/B/C 都换一下）
+2. **去住宅IP服务商重置密码**
+3. 以后发配置时把敏感字段替换成 `★占位符★` 再发
+
+把修复后的文件给你：已修复并更新。总结改动：
+
+**修复 1 — `claude_domain` behavior**：`<<: *domain` → `<<: *classical`，Claude 规则现在会正确生效。
+
+**补充 2 — Cloudflare 规则**：新增 `cloudflare_domain` 规则集和对应的 `RULE-SET` 规则，走默认出口。大量海外站点（Discord、Notion、Cloudflare Workers 等）都走 CF 的 IP，这条规则能防止它们被误判走直连。
+
+---
+
+**再次提醒**：消息里的订阅 Token 和住宅IP密码是明文的，建议尽快去对应平台重置，换新的再填进配置文件里。
+
+
+
+
+
+json文件是我收藏的网站地址都是我用到的
+yaml是配置文件。
+重点是请先把之前的聊天记录的链接和现在的文件都全部理清楚了再开始写。
+
+很不错，可以用，但是有问题是
+你设计的策略组我不喜欢
+
+# 问题
+1. 策略组名称没有标明分别控制哪些ip 比如 🧠 AI 平台 是控制什么ip的？  参考案例：🧠 AI 平台32.x 这样我就知道是控制32网段的。配置文件全部都要重写。
+2.  不要写什么狮城 ，全部换成国家或者地区名。暂时不需要城市名。
+3. 🧠 AI 平台这样的策略组不要加什么 日本故转 美国故转 狮城故转 全部节点 ChatGPT 这些内容，
+正确要求：🧠 AI 平台 只能有 美国自动 日本自动 新加坡自动 英国自动 法国自动 香港自动等等
+其他的策略组都要按照正确要求配置。最好把自动也删除了因为每个策略组的格式就是 国家或者地区名。比如选择了美国 ，就可以自动选择美国最优节点，其他国家一样。
+4. 策略组分类不全，比如🧠 AI 平台  就很模糊，正确要求是 gemini ，claude，chatgpt等等。把一个大的拆成小的。我要精准控制。
+5.请把所有的xx故转 合并到一个策略组。
+6.请根据我的json文件作为参考，在写策略组时知道需要写哪些平台的策略组。
+
+# 网络架构
+34x
+类型: 无线适配器
+设备: ap-34x
+已连接: 是
+MAC: DA:0D:AB:52:74:BF
+接收: 2.24 MB (9569 Pkts.)
+发送: 10.10 MB (12484 Pkts.)
+ap-34x
+协议: 静态地址
+运行时间: 0h 32m 20s
+MAC: DA:0D:AB:52:74:BF
+接收: 2.24 MB (9569 Pkts.)
+发送: 10.10 MB (12484 Pkts.)
+IPv4: 192.168.34.1/24
+Global
+类型: 无线适配器
+设备: ap-Global
+已连接: 是
+MAC: DE:0D:AB:52:74:BF
+接收: 368.39 KB (1612 Pkts.)
+发送: 2.71 MB (3405 Pkts.)
+ap-Global
+协议: 静态地址
+运行时间: 0h 32m 20s
+MAC: DE:0D:AB:52:74:BF
+接收: 368.39 KB (1612 Pkts.)
+发送: 2.71 MB (3405 Pkts.)
+IPv4: 192.168.33.1/24
+lan
+类型: 桥接
+设备: br-lan
+已连接: 是
+MAC: D4:0D:AB:52:74:BE
+接收: 114.63 MB (911227 Pkts.)
+发送: 5.77 GB (1170528 Pkts.)
+ (
+类型: 以太网适配器
+设备: eth1
+已连接: 是
+MAC: D4:0D:AB:52:74:BE
+接收: 22.84 MB (54541 Pkts.)
+发送: 23.66 MB (65539 Pkts.)
+类型: 无线适配器
+设备: ap-direct
+已连接: 是
+MAC: D6:0D:AB:52:74:BF
+接收: 16.12 MB (130432 Pkts.)
+发送: 602.54 MB (493241 Pkts.)
+)
+br-lan
+协议: 静态地址
+运行时间: 13h 29m 31s
+MAC: D4:0D:AB:52:74:BE
+接收: 114.63 MB (911227 Pkts.)
+发送: 5.77 GB (1170528 Pkts.)
+IPv4: 192.168.31.1/24
+IPv6: 2408:826a:9812:4c52:d60d:abff:fe52:74be/64
+IPv6: fd00:dcdd:e21:0:d60d:abff:fe52:74be/64
+rule
+类型: 无线适配器
+设备: ap-rule
+已连接: 是
+MAC: D2:0D:AB:52:74:BF
+接收: 13.10 MB (146913 Pkts.)
+发送: 2.05 GB (1456006 Pkts.)
+ap-rule
+协议: 静态地址
+运行时间: 0h 32m 20s
+MAC: D2:0D:AB:52:74:BF
+接收: 13.10 MB (146913 Pkts.)
+发送: 2.05 GB (1456006 Pkts.)
+IPv4: 192.168.32.1/24
+
+
+
+
+
+
+
+
+
+
+
+
+先读两个文件，完全搞清楚再动笔。两个文件都看完了。整理一下从 JSON 里提取的海外平台清单，再对照旧配置，然后完全重写。
+
+**从 JSON 识别到的需要精细分流的平台：**
+AI类：ChatGPT、Claude、Gemini、DeepSeek、HeyGen、Manus
+视频：YouTube、Netflix、TikTok
+社交：Telegram、X、Instagram、Gmail（Google系）
+开发工具：GitHub、Cursor、Figma、Netlify
+设计社区：Behance、Dribbble、Awwwards
+系统：Microsoft、Apple、Google全系
+加密货币：交易所类
+游戏：Steam
+
+**网络架构确认（对照路由器信息）：**
+- `br-lan` / `ap-direct` → 192.168.31.x = 直链
+- `ap-rule` → 192.168.32.x = 规则代理
+- `ap-Global` → 192.168.33.x = 全局代理
+- `ap-34x` → 192.168.34.x = 住宅IP全部匹配，零错误。复制到输出目录：校验结果：**39个策略组，34个规则集，全部引用匹配零遗漏。**
+
+---
+
+## 本次改动说明
+
+### ① 策略组命名全部标注网段
+| 旧命名 | 新命名 |
+|--------|--------|
+| 🤖 Claude | 🤖 Claude **32.x** |
+| 🌐 全局代理 | 🌐 全局代理 **33.x** |
+| 🏠 住宅IP | 🏠 住宅IP **34.x** |
+
+### ② 狮城全部改为新加坡
+所有 `狮城` → `🇸🇬 新加坡`，filter 关键字同步更新。
+
+### ③ 应用策略组内只有地区名
+```yaml
+- name: "🤖 Claude 32.x"
+  type: select
+  proxies:
+    - "🇯🇵 日本"       # ← 选它就自动选日本最优节点
+    - "🇸🇬 新加坡"
+    - "🇺🇸 美国"
+    - "🇹🇼 台湾"
+    - "🇬🇧 英国"
+```
+每个地区名背后是一个 `url-test` 自动选速组，选地区名 = 自动选该地区延迟最低节点。
+
+### ④ AI 平台拆细
+`🧠 AI 平台` 拆成了 **6个独立策略组**：Claude、ChatGPT、Gemini、DeepSeek、HeyGen、Manus，每个都有独立规则集和策略。
+
+### ⑤ 所有故转合并为一个
+`🔯 故障转移` 一个组搞定，包含所有机场全节点 fallback，再也不用每个地区单独配一个故转。
+
+### ⑥ 根据你的 JSON 新增的平台
+从收藏夹里识别出并新增了：Gemini、DeepSeek、HeyGen、Manus、Cursor、Figma、Netlify、设计社区（Behance/Dribbble/Awwwards）
+
+---
+
+## ⚠️ 注意事项
+
+**HeyGen / Manus / Gemini / DeepSeek 的规则集**：这几个平台 blackmatrix7 的规则集文件可能还未建立（特别是 Manus、HeyGen），如果启动时报错找不到 URL，把对应 `rule-providers` 里的 url 改成你自己的 DOMAIN 规则，或临时删除那条 `RULE-SET` 让流量走 `🚀 默认出口 32.x` 兜底即可。
+
+
+
+
+
+
+
+
+
+非常不错都分流成功了,
+但是再使用体验上有缺点
+#问题
+1. 再使用控制面板 Yacd ,打开Proxies 排版有问题,排在最前面的是各国家或者地区的策略组,但是平时使用的是下面的平台策略组。需要把位置调整一下。
+2. 也不用将Manus、HeyGen这些平台做策略组。只需要将绝大部分的平台做策略组。https://github.com/blackmatrix7/ios_rule_script/tree/master/rule参考这个参考的分类
+3. 需要做一个机场的精准分流。比如玩游戏的steam 如果用机场节点下载游戏会导致流量浪费,看YouTube 只需要走最便宜的机场。目前有3个机场。a 最好- b 次要 - c 最便宜,比如youtube 选择新加坡节点了 优先 使用c机场,如果c机场新加坡节点掉线了再使用b 机场的新加坡节点,如果也掉线了再使用a 机场的新加坡节点。 视频平台都应该遵守这个规则。我选择美国就依次从便宜到好的节点使用。
+# 你有什么建议和方案吗
+这些都是我自己提出的方案,我想知道你的方案和建议,一起交流打破信息差。
+## 如果有好的建议提出来我们再改造
+
+
+
+
+
+
+
+
+先把两个文件都读完再开始分析。文件全部读完了。三个问题 + 你的想法，我逐一分析，然后给出我的方案建议，最后写配置。
+
+---
+
+## 📊 分析 + 我的方案建议
+
+### 问题1：面板排序
+
+原因很简单——`proxy-groups` 列表顺序就是面板显示顺序。现在地区组放最前面，日常用的应用组反而排后面。**解法：调换顺序，应用组置顶，地区组沉底。**
+
+---
+
+### 问题2：平台覆盖
+
+你的方向是对的。我建议按这个分类精简+扩充：
+
+| 类别 | 平台 | 依据 |
+|------|------|------|
+| AI | Claude、ChatGPT、Gemini、DeepSeek | 高频 + 你 JSON 里都有 |
+| 视频流媒体 | YouTube、Netflix、TikTok、Spotify、Disney+ | blackmatrix7 全有规则集 |
+| 社交通讯 | Telegram、X、Instagram、Facebook、Discord | blackmatrix7 全有规则集 |
+| 开发生产力 | Google、GitHub、Cloudflare、Figma、Notion | 你 JSON 里都有 |
+| 系统 | Microsoft、Apple | 保留 |
+| 金融 | 加密货币、PayPal | 你有交易所需求 |
+| 游戏 | Steam | 保留 DIRECT 优先 |
+
+HeyGen、Manus 删除（没有可靠规则集，走默认出口兜底就够）。
+
+---
+
+### 问题3：机场精准分流（你的方案 vs 我的方案）
+
+**你的方案**：YouTube 选新加坡 → 优先 C → 掉线用 B → 再掉线用 A ✅ **方向完全正确！**
+
+**实现方式**（这是关键，mihomo 有一个完美的实现路径）：
+
+```
+第一层：每个机场×每个地区 = url-test 子组（自动选该机场该地区最快节点）
+  [C] 新加坡  ←→ 只抓 AirportC 的新加坡节点，自动选最快
+  [B] 新加坡  ←→ 只抓 AirportB 的新加坡节点，自动选最快
+  [A] 新加坡  ←→ 只抓 AirportA 的新加坡节点，自动选最快
+
+第二层：地区组 = fallback（C→B→A 顺序，谁活用谁）
+  🇸🇬 新加坡: fallback [ [C]新加坡 → [B]新加坡 → [A]新加坡 ]
+```
+
+这样应用组只选"新加坡"，背后自动走 C→B→A 故障转移链。
+
+**我的额外建议（信息差）**：
+
+> **AI 平台要反过来，用 A→B→C 顺序！**
+
+原因：Claude/ChatGPT 是长对话场景，一次对话可能5分钟以上。C 机场便宜但节点更不稳，中途断线比浪费几分钱流量更让人崩溃。建议：
+- 视频类（YouTube/Netflix/TikTok/Spotify）：`C→B→A`（省流量优先）
+- AI 类（Claude/ChatGPT/Gemini）：`A→B→C`（稳定优先）
+- 社交/开发/其他：`C→B→A`（省钱为主）
+- Steam：`DIRECT`（完全不走机场）
+
+所以我会创建两套地区组：`🇸🇬 新加坡`（C→B→A 省流）和 `🇸🇬 新加坡★`（A→B→C 稳定），AI 组引用带★的。
+
+现在开始写配置：零错误，60个策略组全部验证通过。**验证结果：60个策略组，34个规则集，全部引用匹配零遗漏。**
+
+---
+
+## 三个问题的解法总结
+
+### ① 面板排序
+`proxy-groups` 的 YAML 顺序就是面板显示顺序。现在改为：
+
+```
+【第1区】出口组（4个）← 面板最顶部
+【第2区】应用策略组（24个）← 日常操作区
+【第3区】地区组（省流版+稳定版，16个）
+【第4区】机场子组（15个）← 沉底，基础设施
+```
+
+---
+
+### ② 平台覆盖
+删除 HeyGen、Manus（无可靠规则集），新增：
+
+| 新增平台 | 规则集来源 |
+|---------|----------|
+| Spotify | MetaCubeX geosite |
+| Disney+ | MetaCubeX geosite |
+| Facebook | MetaCubeX geosite |
+| Discord | MetaCubeX geosite |
+| Notion | blackmatrix7 |
+| PayPal | MetaCubeX geosite |
+
+---
+
+### ③ 机场精准分流（核心改造）
+
+**你的方案实现了**，并且我加了一个额外优化：
+
+```
+省流版地区组（无★）= C → B → A 故障转移
+稳定版地区组（带★）= A → B → C 故障转移
+```
+
+底层结构：
+```
+[C] 新加坡 = url-test，只抓 AirportC 的新加坡节点
+[B] 新加坡 = url-test，只抓 AirportB 的新加坡节点
+[A] 新加坡 = url-test，只抓 AirportA 的新加坡节点
+     ↓
+🇸🇬 新加坡  = fallback [ [C]新加坡 → [B]新加坡 → [A]新加坡 ]  ← 视频/通用
+🇸🇬 新加坡★ = fallback [ [A]新加坡 → [B]新加坡 → [C]新加坡 ]  ← AI专用
+```
+
+对应应用组引用关系：
+
+| 类型 | 引用的地区组 | 逻辑 |
+|------|------------|------|
+| 📹 YouTube / 🎥 Netflix / 🎧 Spotify | `🇸🇬 新加坡`（省流版）| C先用，挂了换B，再挂换A |
+| 🤖 Claude / ChatGPT / Gemini | `🇸🇬 新加坡★`（稳定版）| A先用，挂了换B，再挂换C |
+| 🎮 Steam | `DIRECT` 置顶 | 完全不消耗机场流量 |
+
+---
+
+### ⚠️ 一个需要注意的地方
+
+如果某个机场**没有某个地区的节点**（比如机场C没有台湾节点），`[C] 台湾` 这个子组会是空的，mihomo 会把它标为不可用，然后 fallback 自动跳到 `[B] 台湾`。这是正确的行为，不会报错，但建议在面板里检查一下各子组是否有节点加载进来。
