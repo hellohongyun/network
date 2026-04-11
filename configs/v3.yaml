@@ -1,0 +1,968 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║         Mihomo 多网段精细分流配置 · OpenWrt 定制版  v3              ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║  网段架构：                                                          ║
+# ║  192.168.31.x  ap-direct / br-lan  → 直链                           ║
+# ║  192.168.32.x  ap-rule             → 规则分流（精细分流核心）        ║
+# ║  192.168.33.x  ap-Global           → 全局代理                        ║
+# ║  192.168.34.x  ap-34x              → 住宅IP出口                      ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║  机场优先级：A（最好） > B（次要） > C（最便宜）                    ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║  地区组设计（两套，按用途选择）：                                    ║
+# ║  🇸🇬 新加坡   = C→B→A 故障转移（省流量，视频/社交/通用）           ║
+# ║  🇸🇬 新加坡★  = A→B→C 故障转移（稳定优先，AI平台专用）             ║
+# ║  每个地区组背后 = 各机场独立 url-test 子组，自动选各机场最快节点   ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║  面板显示顺序（从上到下）：                                          ║
+# ║  出口组 → 应用策略组 → 地区组 → 机场子组（基础设施，不常用）        ║
+# ╠══════════════════════════════════════════════════════════════════════╣
+# ║  必填项搜索 ★ 快速定位                                               ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 一、全局配置
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+mixed-port: 7890
+allow-lan: true
+bind-address: "*"
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+log-level: warning
+global-client-fingerprint: chrome
+keep-alive-idle: 600
+keep-alive-interval: 15
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 二、Web 控制面板
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+external-controller: 0.0.0.0:9090
+secret: ""
+external-ui: ui
+external-ui-name: zashboard
+external-ui-url: "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
+# 访问：http://路由器IP:9090/ui
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 三、流量嗅探
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+  skip-domain:
+    - "Mijia Cloud"
+    - "+.push.apple.com"
+    - "+.apple.com"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 四、TUN 入站（OpenWrt 透明代理）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+tun:
+  enable: true
+  stack: mixed
+  dns-hijack:
+    - "any:53"
+    - "tcp://any:53"
+  auto-route: true
+  auto-redirect: true
+  auto-detect-interface: true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 五、DNS 配置（防泄漏 + 国内外分流解析）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+dns:
+  enable: true
+  cache-algorithm: arc
+  listen: 0.0.0.0:1053
+  ipv6: false
+  respect-rules: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 28.0.0.1/8
+  fake-ip-filter-mode: blacklist
+
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+    - system
+
+  proxy-server-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+
+  direct-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  direct-nameserver-follow-policy: false
+
+  nameserver:
+    - https://8.8.8.8/dns-query#RULES&ecs=223.5.5.0/24
+    - https://1.1.1.1/dns-query#RULES
+
+  fake-ip-filter:
+    - "rule-set:fakeipfilter"
+    - "*.lan"
+    - "*.local"
+    - "*.localhost"
+    - "+.stun.*.*"
+    - "+.stun.*.*.*"
+    - "time.*.com"
+    - "time.*.gov"
+    - "ntp.*.com"
+    - "localhost.ptlogin2.qq.com"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 六、机场订阅（proxy-providers）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+proxy-providers:
+  # ── 机场A · 最好（稳定主力，AI平台优先使用）─────────────────────
+  AirportA:
+    type: http
+    # 脱敏：请替换为你的机场 A 订阅链接（质量/稳定性优先）
+    url: "https://example.com/airport-a/subscribe?token=YOUR_TOKEN_A"
+    interval: 86400
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 120 # 主力机场缩短为2分钟测速一次
+      timeout: 5000
+      lazy: true
+    proxy: DIRECT
+    exclude-filter: "流量|套餐|到期|剩余|重置|官网|网站|最新网址|防失联|失联|公告|通知|TG|Telegram|群|频道|说明|QQ群|客服|工单|订阅|Expire|Traffic|Reset|Remaining|Official"
+
+  # ── 机场B · 次要（备用）──────────────────────────────────────────
+  AirportB:
+    type: http
+    # 脱敏：请替换为你的机场 B 订阅链接（备用）
+    url: "https://example.com/airport-b/subscribe?token=YOUR_TOKEN_B"
+    interval: 86400
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+      timeout: 5000
+      lazy: true
+    proxy: DIRECT
+    exclude-filter: "流量|套餐|到期|剩余|重置|官网|网站|最新网址|防失联|失联|公告|通知|TG|Telegram|群|频道|说明|QQ群|客服|工单|订阅|Expire|Traffic|Reset|Remaining|Official"
+
+  # ── 机场C · 最便宜（视频/流媒体省流量首选）──────────────────────
+  AirportC:
+    type: http
+    # 脱敏：请替换为你的机场 C 订阅链接（性价比/省流）
+    url: "https://example.com/airport-c/subscribe?token=YOUR_TOKEN_C"
+    interval: 86400
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+      timeout: 5000
+      lazy: true
+    proxy: DIRECT # 注意：必须是 DIRECT，不能填策略组名
+    exclude-filter: "流量|套餐|到期|剩余|重置|官网|网站|最新网址|防失联|失联|公告|通知|TG|Telegram|群|频道|说明|QQ群|客服|工单|订阅|Expire|Traffic|Reset|Remaining|Official"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 七、静态住宅 IP（proxies）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+proxies:
+  - name: "🏠 美国住宅-34"
+    type: socks5
+    # 脱敏：请填写你的静态住宅 SOCKS5
+    server: "YOUR_RESIDENTIAL_HOST"
+    port: 8001
+    username: "YOUR_RESIDENTIAL_USER"
+    password: "YOUR_RESIDENTIAL_PASS"
+    udp: true
+
+  # - name: "🏠 英国住宅-35"
+  #   type: socks5
+  #   server: "★填写IP地址★"
+  #   port: ★填写端口★
+  #   username: "★填写用户名★"
+  #   password: "★填写密码★"
+  #   udp: true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 八、代理组锚点
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+p_select: &p_select
+  type: select
+
+# 省流版地区子组：各机场独立 url-test（用 use: 指定单一机场）
+sub_ut_c: &sub_ut_c # C机场子组模板
+  type: url-test
+  use: [AirportC]
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  timeout: 5000
+  tolerance: 50
+
+sub_ut_b: &sub_ut_b # B机场子组模板
+  type: url-test
+  use: [AirportB]
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  timeout: 5000
+  tolerance: 50
+
+sub_ut_a: &sub_ut_a # A机场子组模板
+  type: url-test
+  use: [AirportA]
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  timeout: 5000
+  tolerance: 50
+
+# 地区 fallback 模板
+region_eco: &region_eco # 省流版 C→B→A（视频/社交/通用）
+  type: fallback
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  timeout: 5000
+
+region_pro: &region_pro # 稳定版 A→B→C（AI平台专用）
+  type: fallback
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  timeout: 5000
+
+# 全机场 url-test（次要地区用，节点少不值得拆）
+all_ut: &all_ut
+  type: url-test
+  include-all-providers: true
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+  timeout: 5000
+  tolerance: 20
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 九、代理组（策略组）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# ┌─────────────────────────────────────────────────────────────┐
+# │ 面板显示顺序（最常用的排最前）                               │
+# │  第1区：出口组（4个）                                        │
+# │  第2区：应用策略组（24个，日常操作区）                       │
+# │  第3区：地区组（省流版 + 稳定版，共18个）                    │
+# │  第4区：机场子组（基础设施，15个，沉底，几乎不需要手动碰）   │
+# └─────────────────────────────────────────────────────────────┘
+
+proxy-groups:
+  # ══════════════════════════════════════════════════════════════
+  # 【第1区】出口组（4个）
+  # ══════════════════════════════════════════════════════════════
+
+  # 32.x 规则分流默认出口（未命中规则的海外流量走这里）
+  - name: "🚀 默认出口 32.x"
+    type: select
+    proxies:
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+      - "🇹🇼 台湾"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+      - "🇫🇷 法国"
+      - "🇰🇷 韩国"
+      - "🌐 全部节点"
+      - "🔯 故障转移"
+      - DIRECT
+
+  # 33.x 全局代理（ap-Global，强制所有设备走代理）
+  - name: "🌐 全局代理 33.x"
+    type: select
+    proxies:
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+      - "🇹🇼 台湾"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+      - "🇫🇷 法国"
+      - "🇰🇷 韩国"
+      - "🌐 全部节点"
+      - "🔯 故障转移"
+
+  # 34.x 住宅IP出口（ap-34x）
+  - name: "🏠 住宅IP 34.x"
+    type: select
+    proxies:
+      - "🏠 美国住宅-34"
+      # - "🏠 英国住宅-35"
+
+  # 漏网之鱼
+  - name: "🐟 漏网之鱼"
+    type: select
+    proxies:
+      - "🚀 默认出口 32.x"
+      - "🔯 故障转移"
+      - "🌐 全部节点"
+      - DIRECT
+
+  # ══════════════════════════════════════════════════════════════
+  # 【第2区】应用策略组（32.x 规则分流，日常操作区）
+  #
+  #  规则：
+  #  · AI 类  → 引用 稳定版地区组（带★）→ A优先 → 断线稳定
+  #  · 视频类 → 引用 省流版地区组    → C优先 → 省机场流量
+  #  · 其他类 → 引用 省流版地区组    → C优先 → 日常通用
+  #  · Steam  → DIRECT 优先，完全不消耗机场流量
+  # ══════════════════════════════════════════════════════════════
+
+  # ─────────────────────────────────
+  # AI 平台（稳定优先，引用 ★ 版地区）
+  # ─────────────────────────────────
+
+  # Claude —— 不支持香港IP，不放香港
+  - name: "🤖 Claude 32.x"
+    type: select
+    proxies:
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇺🇸 美国★"
+      - "🇹🇼 台湾★"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+      - "🇫🇷 法国"
+
+  # ChatGPT / OpenAI —— 不支持香港IP，不放香港
+  - name: "🤖 ChatGPT 32.x"
+    type: select
+    proxies:
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇺🇸 美国★"
+      - "🇹🇼 台湾★"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+      - "🇫🇷 法国"
+
+  # Google Gemini
+  - name: "🔮 Gemini 32.x"
+    type: select
+    proxies:
+      - "🇭🇰 香港★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇺🇸 美国★"
+      - "🇹🇼 台湾★"
+
+  # DeepSeek（服务器在国内，但访问需规避干扰）
+  - name: "🐋 DeepSeek 32.x"
+    type: select
+    proxies:
+      - "🇭🇰 香港★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇺🇸 美国★"
+      - "🇹🇼 台湾★"
+
+  # ─────────────────────────────────
+  # 视频流媒体（省流优先，引用省流版地区）
+  # ─────────────────────────────────
+
+  # YouTube
+  - name: "📹 YouTube 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇹🇼 台湾"
+
+  # Netflix（流媒体解锁建议选机场C专线节点）
+  - name: "🎥 Netflix 32.x"
+    type: select
+    proxies:
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇹🇼 台湾"
+
+  # TikTok —— 封锁香港/中国IP，不放香港
+  - name: "🎵 TikTok 32.x"
+    type: select
+    proxies:
+      - "🇯🇵 日本"
+      - "🇺🇸 美国"
+      - "🇸🇬 新加坡"
+      - "🇹🇼 台湾"
+      - "🇰🇷 韩国"
+
+  # Spotify（音乐流媒体）
+  - name: "🎧 Spotify 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+
+  # Disney+
+  - name: "🏰 Disney+ 32.x"
+    type: select
+    proxies:
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇹🇼 台湾"
+      - "🇭🇰 香港"
+
+  # ─────────────────────────────────
+  # 社交通讯
+  # ─────────────────────────────────
+
+  # Telegram
+  - name: "📲 Telegram 32.x"
+    type: select
+    proxies:
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇺🇸 美国"
+      - "🇩🇪 德国"
+
+  # X (Twitter)
+  - name: "🐦 X 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+
+  # Instagram
+  - name: "📸 Instagram 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+
+  # Facebook
+  - name: "👤 Facebook 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+
+  # Discord
+  - name: "🎮 Discord 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+
+  # ─────────────────────────────────
+  # 开发 & 生产力
+  # ─────────────────────────────────
+
+  # Google 全系（搜索/Gmail/地图/Drive/YouTube API）
+  - name: "🍀 Google 32.x"
+    type: select
+    proxies:
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+      - "🇹🇼 台湾"
+
+  # GitHub
+  - name: "👨‍💻 GitHub 32.x"
+    type: select
+    proxies:
+      - "🇭🇰 香港"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+
+  # Cloudflare（CDN / Workers / R2 / DNS）
+  - name: "☁️ Cloudflare 32.x"
+    type: select
+    proxies:
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇺🇸 美国"
+      - "🇸🇬 新加坡"
+
+  # Figma
+  - name: "🖌️ Figma 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+
+  # Notion
+  - name: "📝 Notion 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+
+  # ─────────────────────────────────
+  # 系统 & 办公
+  # ─────────────────────────────────
+
+  # Microsoft（OneDrive / Azure / Office 365）
+  # 国内大多可直连，DIRECT 置顶
+  - name: "🪟 Microsoft 32.x"
+    type: select
+    proxies:
+      - DIRECT
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇺🇸 美国"
+
+  # Apple（App Store / iCloud / Apple ID）
+  # 国内可直连，DIRECT 置顶
+  - name: "🍎 Apple 32.x"
+    type: select
+    proxies:
+      - DIRECT
+      - "🇭🇰 香港"
+      - "🇺🇸 美国"
+
+  # ─────────────────────────────────
+  # 金融 & 支付
+  # ─────────────────────────────────
+
+  # 加密货币交易所（OKX / Binance / Bybit 等）
+  - name: "🪙 加密货币 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇸🇬 新加坡"
+      - "🇯🇵 日本"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  # PayPal
+  - name: "💰 PayPal 32.x"
+    type: select
+    proxies:
+      - "🇺🇸 美国"
+      - "🇸🇬 新加坡"
+      - "🇬🇧 英国"
+      - "🇯🇵 日本"
+
+  # ─────────────────────────────────
+  # 游戏
+  # ─────────────────────────────────
+
+  # Steam —— DIRECT 优先：游戏下载不走任何机场，节省流量！
+  # 如遇到封锁再手动切换到就近地区
+  - name: "🎮 Steam 32.x"
+    type: select
+    proxies:
+      - DIRECT
+      - "🇭🇰 香港"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+
+  # ══════════════════════════════════════════════════════════════
+  # 【第3区】地区组（省流版 + 稳定版，共18个）
+  #
+  #  省流版（无★）= C→B→A 故障转移，适合视频/社交/日常
+  #  稳定版（带★）= A→B→C 故障转移，适合AI/重要业务
+  #
+  #  两版的节点来源完全相同，只是优先顺序不同
+  # ══════════════════════════════════════════════════════════════
+
+  # ── 香港 省流版（C→B→A）────────────────────────────────────
+  - name: "🇭🇰 香港"
+    <<: *region_eco
+    proxies: ["[C] 香港", "[B] 香港", "[A] 香港"]
+
+  # ── 香港 稳定版（A→B→C）★────────────────────────────────────
+  - name: "🇭🇰 香港★"
+    <<: *region_pro
+    proxies: ["[A] 香港", "[B] 香港", "[C] 香港"]
+
+  # ── 日本 省流版 ──────────────────────────────────────────────
+  - name: "🇯🇵 日本"
+    <<: *region_eco
+    proxies: ["[C] 日本", "[B] 日本", "[A] 日本"]
+
+  # ── 日本 稳定版 ★────────────────────────────────────────────
+  - name: "🇯🇵 日本★"
+    <<: *region_pro
+    proxies: ["[A] 日本", "[B] 日本", "[C] 日本"]
+
+  # ── 新加坡 省流版 ────────────────────────────────────────────
+  - name: "🇸🇬 新加坡"
+    <<: *region_eco
+    proxies: ["[C] 新加坡", "[B] 新加坡", "[A] 新加坡"]
+
+  # ── 新加坡 稳定版 ★──────────────────────────────────────────
+  - name: "🇸🇬 新加坡★"
+    <<: *region_pro
+    proxies: ["[A] 新加坡", "[B] 新加坡", "[C] 新加坡"]
+
+  # ── 美国 省流版 ──────────────────────────────────────────────
+  - name: "🇺🇸 美国"
+    <<: *region_eco
+    proxies: ["[C] 美国", "[B] 美国", "[A] 美国"]
+
+  # ── 美国 稳定版 ★────────────────────────────────────────────
+  - name: "🇺🇸 美国★"
+    <<: *region_pro
+    proxies: ["[A] 美国", "[B] 美国", "[C] 美国"]
+
+  # ── 台湾 省流版 ──────────────────────────────────────────────
+  - name: "🇹🇼 台湾"
+    <<: *region_eco
+    proxies: ["[C] 台湾", "[B] 台湾", "[A] 台湾"]
+
+  # ── 台湾 稳定版 ★────────────────────────────────────────────
+  - name: "🇹🇼 台湾★"
+    <<: *region_pro
+    proxies: ["[A] 台湾", "[B] 台湾", "[C] 台湾"]
+
+  # ── 英国（节点较少，全机场 url-test）────────────────────────
+  - name: "🇬🇧 英国"
+    <<: *all_ut
+    filter: "(?=.*(英|UK|(?i)United Kingdom|Britain|London))^((?!(港|台|日|新|美|德|法)).)*$"
+
+  # ── 德国 ─────────────────────────────────────────────────────
+  - name: "🇩🇪 德国"
+    <<: *all_ut
+    filter: "(?=.*(德|DE|(?i)Germany|Berlin|Frankfurt))^((?!(港|台|日|新|美|英|法)).)*$"
+
+  # ── 法国 ─────────────────────────────────────────────────────
+  - name: "🇫🇷 法国"
+    <<: *all_ut
+    filter: "(?=.*(法|FR|(?i)France|Paris))^((?!(港|台|日|新|美|英|德)).)*$"
+
+  # ── 韩国 ─────────────────────────────────────────────────────
+  - name: "🇰🇷 韩国"
+    <<: *all_ut
+    filter: "(?=.*(韩|韓|KR|(?i)Korea|Seoul))^((?!(港|台|日|新|美)).)*$"
+
+  # ── 全部节点（手动选，应急用）───────────────────────────────
+  - name: "🌐 全部节点"
+    type: select
+    include-all-providers: true
+
+  # ── 故障转移（全节点兜底，节点完全失联时使用）───────────────
+  - name: "🔯 故障转移"
+    type: fallback
+    include-all-providers: true
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    timeout: 5000
+    filter: "^((?!(直连|剩余|到期|官网|流量|套餐)).)*$"
+
+  # ══════════════════════════════════════════════════════════════
+  # 【第4区】机场子组（基础设施，沉底，日常几乎不需要手动操作）
+  #
+  #  命名格式：[机场等级] 地区名
+  #  · [C] = 最便宜机场的该地区节点，url-test 自动选最快
+  #  · [B] = 次要机场的该地区节点
+  #  · [A] = 最好机场的该地区节点
+  #
+  #  这些组是上方地区组（省流版/稳定版）的底层节点来源
+  #  如需强制指定某机场某地区，可在应用组里直接选这里的组名
+  # ══════════════════════════════════════════════════════════════
+
+  # ── 香港子组 ─────────────────────────────────────────────────
+  - name: "[C] 香港"
+    <<: *sub_ut_c
+    filter: "(?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美|英|法|德|澳|韓)).)*$"
+
+  - name: "[B] 香港"
+    <<: *sub_ut_b
+    filter: "(?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美|英|法|德|澳|韓)).)*$"
+
+  - name: "[A] 香港"
+    <<: *sub_ut_a
+    filter: "(?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美|英|法|德|澳|韓)).)*$"
+
+  # ── 日本子组 ─────────────────────────────────────────────────
+  - name: "[C] 日本"
+    <<: *sub_ut_c
+    filter: "(?=.*(日|JP|(?i)Japan))^((?!(港|台|韩|新|美|英|韓)).)*$"
+
+  - name: "[B] 日本"
+    <<: *sub_ut_b
+    filter: "(?=.*(日|JP|(?i)Japan))^((?!(港|台|韩|新|美|英|韓)).)*$"
+
+  - name: "[A] 日本"
+    <<: *sub_ut_a
+    filter: "(?=.*(日|JP|(?i)Japan))^((?!(港|台|韩|新|美|英|韓)).)*$"
+
+  # ── 新加坡子组 ───────────────────────────────────────────────
+  - name: "[C] 新加坡"
+    <<: *sub_ut_c
+    filter: "(?=.*(新加坡|坡|SG|(?i)Singapore))^((?!(港|台|日|韩|美|韓)).)*$"
+
+  - name: "[B] 新加坡"
+    <<: *sub_ut_b
+    filter: "(?=.*(新加坡|坡|SG|(?i)Singapore))^((?!(港|台|日|韩|美|韓)).)*$"
+
+  - name: "[A] 新加坡"
+    <<: *sub_ut_a
+    filter: "(?=.*(新加坡|坡|SG|(?i)Singapore))^((?!(港|台|日|韩|美|韓)).)*$"
+
+  # ── 美国子组 ─────────────────────────────────────────────────
+  - name: "[C] 美国"
+    <<: *sub_ut_c
+    filter: "(?=.*(美|US|(?i)States|America))^((?!(港|台|日|韩|新|韓)).)*$"
+
+  - name: "[B] 美国"
+    <<: *sub_ut_b
+    filter: "(?=.*(美|US|(?i)States|America))^((?!(港|台|日|韩|新|韓)).)*$"
+
+  - name: "[A] 美国"
+    <<: *sub_ut_a
+    filter: "(?=.*(美|US|(?i)States|America))^((?!(港|台|日|韩|新|韓)).)*$"
+
+  # ── 台湾子组 ─────────────────────────────────────────────────
+  - name: "[C] 台湾"
+    <<: *sub_ut_c
+    filter: "(?=.*(台|TW|(?i)Taiwan|Taipei))^((?!(港|日|韩|新|美|韓)).)*$"
+
+  - name: "[B] 台湾"
+    <<: *sub_ut_b
+    filter: "(?=.*(台|TW|(?i)Taiwan|Taipei))^((?!(港|日|韩|新|美|韓)).)*$"
+
+  - name: "[A] 台湾"
+    <<: *sub_ut_a
+    filter: "(?=.*(台|TW|(?i)Taiwan|Taipei))^((?!(港|日|韩|新|美|韓)).)*$"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 十、路由规则
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rules:
+  # VLAN 网段路由（最高优先级）
+  - SRC-IP-CIDR,192.168.31.0/24,DIRECT,no-resolve # 直链
+  - SRC-IP-CIDR,192.168.33.0/24,🌐 全局代理 33.x,no-resolve # 全局代理
+  - SRC-IP-CIDR,192.168.34.0/24,🏠 住宅IP 34.x,no-resolve # 住宅IP
+  # 192.168.32.x 继续向下走规则分流，无需拦截
+  # - SRC-IP-CIDR,192.168.35.0/24,🏠 住宅IP 35.x,no-resolve  # 扩展模板
+
+  # 私有地址直连
+  - RULE-SET,private_ip,DIRECT,no-resolve
+  - RULE-SET,private_domain,DIRECT
+
+  # ── AI 平台 ──────────────────────────────────────────────────
+  - RULE-SET,claude_domain,🤖 Claude 32.x
+  - RULE-SET,openai_domain,🤖 ChatGPT 32.x
+  - RULE-SET,gemini_domain,🔮 Gemini 32.x
+  - RULE-SET,deepseek_domain,🐋 DeepSeek 32.x
+
+  # ── 视频流媒体 ────────────────────────────────────────────────
+  - RULE-SET,youtube_domain,📹 YouTube 32.x
+  - RULE-SET,netflix_domain,🎥 Netflix 32.x
+  - RULE-SET,netflix_ip,🎥 Netflix 32.x,no-resolve
+  - RULE-SET,tiktok_domain,🎵 TikTok 32.x
+  - RULE-SET,spotify_domain,🎧 Spotify 32.x
+  - RULE-SET,disney_domain,🏰 Disney+ 32.x
+
+  # ── 社交通讯 ─────────────────────────────────────────────────
+  - RULE-SET,telegram_domain,📲 Telegram 32.x
+  - RULE-SET,telegram_ip,📲 Telegram 32.x,no-resolve
+  - RULE-SET,twitter_domain,🐦 X 32.x
+  - RULE-SET,instagram_domain,📸 Instagram 32.x
+  - RULE-SET,facebook_domain,👤 Facebook 32.x
+  - RULE-SET,discord_domain,🎮 Discord 32.x
+
+  # ── 开发 & 生产力 ─────────────────────────────────────────────
+  - RULE-SET,google_domain,🍀 Google 32.x
+  - RULE-SET,google_ip,🍀 Google 32.x,no-resolve
+  - RULE-SET,github_domain,👨‍💻 GitHub 32.x
+  - RULE-SET,cloudflare_domain,☁️ Cloudflare 32.x
+  - RULE-SET,figma_domain,🖌️ Figma 32.x
+  - RULE-SET,notion_domain,📝 Notion 32.x
+
+  # ── 系统 & 办公 ──────────────────────────────────────────────
+  - RULE-SET,onedrive_domain,🪟 Microsoft 32.x
+  - RULE-SET,microsoft_domain,🪟 Microsoft 32.x
+  - RULE-SET,apple_domain,🍎 Apple 32.x
+  - RULE-SET,apple_ip,🍎 Apple 32.x,no-resolve
+
+  # ── 金融 & 游戏 ──────────────────────────────────────────────
+  - RULE-SET,crypto_domain,🪙 加密货币 32.x
+  - RULE-SET,paypal_domain,💰 PayPal 32.x
+  - RULE-SET,steam_domain,🎮 Steam 32.x
+
+  # ── GFW & 中国大陆兜底 ───────────────────────────────────────
+  - RULE-SET,geolocation_not_cn,🚀 默认出口 32.x
+  - RULE-SET,cn_domain,DIRECT
+  - RULE-SET,cn_ip,DIRECT,no-resolve
+
+  # 最终兜底
+  - MATCH,🐟 漏网之鱼
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 十一、规则集（rule-providers）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rule-anchor:
+  ip: &ip
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+  domain: &domain
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+  classical: &classical
+    type: http
+    interval: 86400
+    behavior: classical
+    format: text
+
+rule-providers:
+  fakeipfilter:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/wwqgtxx/clash-rules/release/fakeip-filter.mrs"
+
+  private_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"
+  private_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"
+
+  # ── AI ───────────────────────────────────────────────────────
+  claude_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Claude/Claude.yaml"
+    format: yaml
+  openai_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/openai.mrs"
+  gemini_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Gemini/Gemini.yaml"
+    format: yaml
+  deepseek_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/DeepSeek/DeepSeek.yaml"
+    format: yaml
+
+  # ── 视频流媒体 ────────────────────────────────────────────────
+  youtube_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/youtube.mrs"
+  netflix_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/netflix.mrs"
+  netflix_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/netflix.mrs"
+  tiktok_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tiktok.mrs"
+  spotify_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/spotify.mrs"
+  disney_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/disney.mrs"
+
+  # ── 社交通讯 ─────────────────────────────────────────────────
+  telegram_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.mrs"
+  telegram_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/telegram.mrs"
+  twitter_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/twitter.mrs"
+  instagram_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Instagram/Instagram.list"
+  facebook_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/facebook.mrs"
+  discord_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/discord.mrs"
+
+  # ── 开发 & 生产力 ─────────────────────────────────────────────
+  google_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google.mrs"
+  google_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/google.mrs"
+  github_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"
+  cloudflare_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cloudflare.mrs"
+  figma_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Figma/Figma.yaml"
+    format: yaml
+  notion_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Notion/Notion.yaml"
+    format: yaml
+
+  # ── 系统 & 办公 ──────────────────────────────────────────────
+  onedrive_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/onedrive.mrs"
+  microsoft_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/microsoft.mrs"
+  apple_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/apple.mrs"
+  apple_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo-lite/geoip/apple.mrs"
+
+  # ── 金融 & 游戏 ──────────────────────────────────────────────
+  crypto_domain:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Cryptocurrency/Cryptocurrency.list"
+  paypal_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/paypal.mrs"
+  steam_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/steam.mrs"
+
+  # ── GFW & 中国大陆 ───────────────────────────────────────────
+  geolocation_not_cn:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.mrs"
+  cn_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+  cn_ip:
+    <<: *ip
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"

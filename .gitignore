@@ -1,0 +1,7 @@
+.DS_Store
+
+# Never commit files with real subscriptions or secrets
+*.local.yaml
+*.secret.yaml
+.env
+.env.*
