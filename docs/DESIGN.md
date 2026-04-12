@@ -135,11 +135,11 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
 
 ```
 ┌─ 第1区：出口组（4个）──────────────────────────┐
-│  🚀 默认出口 32.x    → 未命中规则的海外流量     │
+│  🚀 默认出口 32.x    → 未命中规则的海外流量（可选 ★稳定 / 无★省流）│
 │  🌐 全局代理 33.x    → 33.x 网段全部流量        │
 │  🏠 住宅IP 34.x      → 34.x 网段全部流量        │
 │  🐟 漏网之鱼         → MATCH 兜底               │
-├─ 第2区：应用策略组（24个）─────────────────────┤
+├─ 第2区：应用策略组（24个，多数含 ★稳定+省流双轨）───────┤
 │  AI: Claude, ChatGPT, Gemini, DeepSeek          │
 │  视频: YouTube, Netflix, TikTok, Spotify, Disney│
 │  社交: Telegram, X, Instagram, Facebook, Discord│
