@@ -1,0 +1,5 @@
+# DIRECT-32：192.168.32.x（规则分流网段）个人维护的「目的侧」直连列表
+# 由主配置 RULE-SET,direct_32,DIRECT 引用；仅影响命中规则的流量，不改变网段路由
+payload:
+  - DOMAIN-SUFFIX,lth.hk
+  - DOMAIN-SUFFIX,heke.hk

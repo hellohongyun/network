@@ -1,5 +1,0 @@
-# prdiy = 个人规则维护 DIY（本文件简称）
-# 以下根域及其子域直连；扩展时在 payload 中追加 DOMAIN-SUFFIX / DOMAIN 即可
-payload:
-  - DOMAIN-SUFFIX,lth.hk
-  - DOMAIN-SUFFIX,heke.hk
