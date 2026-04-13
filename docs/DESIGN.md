@@ -1,8 +1,8 @@
 # 方案设计文档
 
 > 项目：Mihomo 多网段精细分流配置  
-> 版本：v5  
-> 最后更新：2026-04-11
+> 版本：v6  
+> 最后更新：2026-04-12
 
 ---
 
@@ -46,13 +46,19 @@
 
 ### 2.1 实现方式
 
-使用 `SRC-IP-CIDR` 规则，放在所有 RULE-SET 之前（最高优先级）。
+使用 `SRC-IP-CIDR` / `SUB-RULE` 等规则，放在所有 RULE-SET 之前（最高优先级）。**v6 起 34.x 住宅网段**不再使用「单行 SRC 直达住宅」，改为 **SUB-RULE + 子链**：白名单直连，其余 `MATCH` 住宅出口（见下）。
 
 ```yaml
+# 子规则（与 rules 同级，见 Mihomo sub-rule 文档）
+sub-rules:
+  residential34:
+    - RULE-SET,direct_34,DIRECT
+    - MATCH,🏠 住宅IP 34.x
+
 rules:
-  - SRC-IP-CIDR,192.168.31.0/24,DIRECT,no-resolve       # 直链
-  - SRC-IP-CIDR,192.168.33.0/24,🌐 全局代理 33.x,no-resolve  # 全局代理
-  - SRC-IP-CIDR,192.168.34.0/24,🏠 住宅IP 34.x,no-resolve    # 住宅IP
+  - SRC-IP-CIDR,192.168.31.0/24,DIRECT,no-resolve
+  - SRC-IP-CIDR,192.168.33.0/24,🌐 全局代理 33.x,no-resolve
+  - SUB-RULE,(SRC-IP-CIDR,192.168.34.0/24),residential34
   # 192.168.32.x → 不拦截，继续向下走全部分流规则
 ```
 
@@ -61,14 +67,29 @@ rules:
 - 31.x 用 `DIRECT`，不走任何代理逻辑
 - 32.x **不写任何 SRC-IP-CIDR 规则**，让流量自然落入后续的 RULE-SET 匹配
 - 33.x 指向一个 `select` 策略组，用户可在面板切换全局出口地区
-- 34.x 指向住宅 IP 策略组
+- **34.x（v6）**：`SUB-RULE,(SRC-IP-CIDR,192.168.34.0/24),residential34` 进入子链；先 `RULE-SET,direct_34` 命中则 **DIRECT**（远程桌面等低延迟需求），未命中则 **`MATCH` → 住宅 IP 策略组**（默认仍像住宅出口）
+- `DIRECT-34.yaml` 中**只写目的侧**条件（域名、IP、端口等），**不写源 IP**；源网段由上述 `SUB-RULE` 限定，避免 31/32/33 误直连
 
 ### 2.3 扩展方式
 
-新增网段只需：
-1. 在 `proxies` 中添加住宅 IP 节点
-2. 在 `proxy-groups` 中添加策略组
-3. 在 `rules` 顶部添加一行 `SRC-IP-CIDR`
+**普通网段**（无住宅白名单）：在 `rules` 顶部增加 `SRC-IP-CIDR` 即可；`proxies` / `proxy-groups` 按需补充。
+
+**住宅类网段且需白名单（推荐与 v6 一致）**：
+
+1. 在 `proxies` / `proxy-groups` 中增加住宅节点与出口组（同前）
+2. 新增 `configs/rulesets/DIRECT-{网段}.yaml`（classical `payload`），维护直连白名单
+3. 增加 `rule-providers.direct_{网段}` 指向该 raw URL
+4. 增加 `sub-rules.residential{网段}`：`RULE-SET,direct_{网段},DIRECT` → `MATCH,🏠 住宅IP …`
+5. 在 `rules` 顶部用 `SUB-RULE,(SRC-IP-CIDR,…),residential{网段}` 作为该网段入口
+
+### 2.4 本仓 `configs/rulesets` 命名约定（v6）
+
+| 文件名模式 | 含义 | 主配置中的典型用法 |
+|-----------|------|-------------------|
+| `DIRECT-32.yaml` | 与 **32.x 分流场景**相关的个人直连目的列表 | `RULE-SET,direct_32,DIRECT`（与 v5 前 `prdiy` 等价，全局命中即直连，语义上服务「规则分流网段」维护） |
+| `DIRECT-34.yaml` | **34.x 住宅网段**内白名单的**目的侧**规则 | 仅出现在 `sub-rules.residential34` 内，由 `SRC-IP` 限定源 |
+
+**rule-provider 键名**：小写 + 下划线，与文件名对应，如 `direct_32`、`direct_34`。今后新增同类文件沿用 **`策略简写-网段`**（不含 `proxy-32` 等仅为举例、未落地的占位文件）。
 
 ## 3. 机场阶梯式分层体系设计
 
@@ -167,7 +188,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
   │
   ├─ SRC-IP-CIDR 31.x → DIRECT（直链网段，立即返回）
   ├─ SRC-IP-CIDR 33.x → 全局代理（全局网段，立即返回）
-  ├─ SRC-IP-CIDR 34.x → 住宅IP（住宅网段，立即返回）
+  ├─ SUB-RULE 源为 34.x → 子链：RULE-SET direct_34 → DIRECT；否则 MATCH → 🏠 住宅IP 34.x
   │
   │  ↓ 32.x 网段继续向下
   │
@@ -189,7 +210,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
 
 ### 5.1 规则排列原则
 
-1. **网段路由最先**：一票否决，31/33/34.x 直接定向
+1. **网段路由最先**：31.x、33.x 单行定向；**34.x 为 SUB-RULE 入口**，子链内再区分直连白名单与住宅默认
 2. **具体应用在前**：YouTube 规则在 Google 之前（YouTube 是 Google 子集）
 3. **domain + ip 配对**：域名规则匹配域名，IP 规则补漏 CDN/直连 IP
 4. **兜底在后**：`geolocation-!cn` → `cn` → `MATCH`
@@ -256,8 +277,11 @@ newapp_domain:
   type: select
   proxies: ["🏠 英国住宅-35"]
 
-# 3. 在 rules 顶部添加网段路由
+# 3a. 若 35.x 为「全屋住宅、无白名单」：一行 SRC 即可
 - SRC-IP-CIDR,192.168.35.0/24,🏠 住宅IP 35.x,no-resolve
+
+# 3b. 若与 34.x 相同需求（白名单直连 + 默认住宅）：复制 v6 的
+#     sub-rules + DIRECT-35.yaml + direct_35 + SUB-RULE 模式（见 §2.3）
 ```
 
 ### 7.3 新增机场（加入已有梯队）
@@ -283,3 +307,9 @@ sub_ut_c: &sub_ut_c
 sub_ut_c: use: [CrossWall, DuoBaoYiYuan, Kitty]
 sub_ut_b: use: [YiYuan]
 ```
+
+### 7.5 住宅网段白名单与文档索引（v6）
+
+- **需求与验收**：`REQUIREMENTS.md`（NET-04、RES-*、NFR-05）
+- **落地配置**：`configs/v6.yaml`、`configs/rulesets/DIRECT-34.yaml`
+- **内核说明**：[Route Rules](https://wiki.metacubex.one/en/config/rules/)（`SUB-RULE`）、[sub-rule](https://wiki.metacubex.one/en/config/sub-rule/)

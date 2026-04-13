@@ -1,8 +1,8 @@
 # 技术规范文档
 
 > 项目：Mihomo 多网段精细分流配置  
-> 版本：v5  
-> 最后更新：2026-04-11
+> 版本：v6  
+> 最后更新：2026-04-12
 
 ---
 
@@ -26,7 +26,8 @@
 | 全局配置 | https://wiki.metacubex.one/config/general/ | mixed-port/allow-lan/ipv6 等 |
 | DNS 配置 | https://wiki.metacubex.one/config/dns/ | fake-ip/respect-rules/nameserver 等 |
 | 代理组 | https://wiki.metacubex.one/config/proxy-groups/ | select/url-test/fallback/filter 等 |
-| 路由规则 | https://wiki.metacubex.one/config/rules/ | RULE-SET/DOMAIN/GEOSITE/SRC-IP-CIDR 等 |
+| 路由规则 | https://wiki.metacubex.one/config/rules/ | RULE-SET/DOMAIN/GEOSITE/SRC-IP-CIDR、`SUB-RULE`、`AND`/`OR` 等 |
+| 子规则 | https://wiki.metacubex.one/config/sub-rule/ | 住宅网段白名单子链（v6） |
 | 规则集 | https://wiki.metacubex.one/config/rule-providers/ | behavior/format/interval 等 |
 | 代理集 | https://wiki.metacubex.one/config/proxy-providers/ | health-check/exclude-filter/override 等 |
 | 入站配置 | https://wiki.metacubex.one/config/inbound/ | TUN/sniffer 等 |
@@ -124,6 +125,17 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 |--------|-----|---------|
 | fakeipfilter | `wwqgtxx/clash-rules/release/fakeip-filter.mrs` | ✅ 200 |
 
+### 3.6 本仓 `configs/rulesets`（v6）
+
+与上游 Meta/blackmatrix7 并列维护的 **classical + yaml** 规则集，raw 路径需与 `rule-providers` 中 URL 一致（推送本仓库后生效）。
+
+| rule-provider 键 | 文件 | 说明 |
+|------------------|------|------|
+| `direct_32` | `DIRECT-32.yaml` | 32.x 分流场景下个人维护的直连域名等（`RULE-SET,direct_32,DIRECT`） |
+| `direct_34` | `DIRECT-34.yaml` | **仅**在 `sub-rules.residential34` 内引用；34.x 源网段白名单目的（域名/IP/端口），避免其它网段误直连 |
+
+**命名约定**：文件名 `策略简写-网段.yaml`（大写段名与网段数字）；键名 `小写_数字`。不再保留仅为举例、未接入配置的占位文件。
+
 ## 4. YAML 编码规范
 
 ### 4.1 文件结构
@@ -140,6 +152,7 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 七、静态住宅 IP（proxies）
 八、代理组锚点
 九、代理组（proxy-groups）
+（v6）子规则 sub-rules：住宅网段白名单子链，紧挨在「十、路由规则」之前书写即可
 十、路由规则（rules）
 十一、规则集（rule-providers）
 ```
@@ -154,6 +167,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | 机场子组 | `[机场等级] + 地区名` | `[C] 香港` |
 | 规则集名 | `服务名_类型` | `telegram_domain`, `telegram_ip` |
 | 锚点名 | `小写_缩写` | `sub_ut_c`, `region_eco` |
+| 本仓 rulesets 文件名 | `策略简写-网段.yaml` | `DIRECT-32.yaml`, `DIRECT-34.yaml` |
+| 本仓 rulesets provider 键 | `小写_网段数字` | `direct_32`, `direct_34` |
 
 ### 4.3 锚点使用规范
 
@@ -235,6 +250,15 @@ proxy: CrossWall   # 替代原来的 proxy: DIRECT
 解决：v4 起默认出口以 ★稳定版（A→C→B）为首选；v5 在 `🚀 默认出口 32.x` 中同时列出省流版五地，便于在面板切到 C→B→A 省梯队费用。
 
 ## 6. 版本变更日志
+
+### v6（2026-04-12）
+
+| 变更项 | 说明 |
+|--------|------|
+| 34.x 住宅网段 | 由单行 `SRC-IP-CIDR → 🏠` 改为 `SUB-RULE` + `sub-rules`：`RULE-SET,direct_34,DIRECT` 后 `MATCH,🏠 住宅IP 34.x` |
+| 白名单维护 | `configs/rulesets/DIRECT-34.yaml`（远程桌面等域名/端口/IP）；`DIRECT-32.yaml` 承接原 `prdiy.yaml` |
+| 仓库 rulesets 命名 | `策略-网段` 文件名 + `direct_*` provider 键；删除未使用的 `proxy-32` 举例文件 |
+| 配置主文件 | `configs/v6.yaml`；v3/v4/v5 中个人直连 provider 更名为 `direct_32` 并指向 `DIRECT-32.yaml` |
 
 ### v5（2026-04-11）
 

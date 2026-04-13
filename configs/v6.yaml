@@ -1,12 +1,13 @@
 # ╔══════════════════════════════════════════════════════════════════════╗
-# ║         Mihomo 多网段精细分流配置 · OpenWrt 定制版  v5              ║
+# ║         Mihomo 多网段精细分流配置 · OpenWrt 定制版  v6              ║
 # ╠══════════════════════════════════════════════════════════════════════╣
 # ║  网段架构：                                                          ║
 # ║  192.168.31.x  ap-direct / br-lan  → 直链                           ║
 # ║  192.168.32.x  ap-rule             → 规则分流（精细分流核心）        ║
 # ║  192.168.33.x  ap-Global           → 全局代理                        ║
-# ║  192.168.34.x  ap-34x              → 住宅IP出口                      ║
+# ║  192.168.34.x  ap-34x              → 默认住宅IP；白名单 SUB-RULE 直连 ║
 # ╠══════════════════════════════════════════════════════════════════════╣
+# ║  v6：34.x 住宅网段白名单直连（远程桌面等）；rulesets 按 类型-网段 命名 ║
 # ║  v5 阶梯式多机场分层：                                               ║
 # ║  主力梯队 C：CrossWall + DuoBaoYiYuan（日常大流量，速度适中）       ║
 # ║  保底梯队 B：YiYuan + Kitty（最便宜，主力挂了兜底）                 ║
@@ -870,19 +871,28 @@ proxy-groups:
     filter: "(?=.*(台|TW|(?i)Taiwan|Taipei))^((?!(港|日|韩|新|美|韓)).)*$"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 子规则：住宅网段 34.x（RULE-SET direct_34 白名单直连，其余 MATCH 住宅出口）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+sub-rules:
+  residential34:
+    - RULE-SET,direct_34,DIRECT
+    - MATCH,🏠 住宅IP 34.x
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 十、路由规则
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 rules:
   # VLAN 网段路由（最高优先级）
   - SRC-IP-CIDR,192.168.31.0/24,DIRECT,no-resolve
   - SRC-IP-CIDR,192.168.33.0/24,🌐 全局代理 33.x,no-resolve
-  - SRC-IP-CIDR,192.168.34.0/24,🏠 住宅IP 34.x,no-resolve
+  # 34.x：仅 RULE-SET direct_34 命中直连，其余仍走 🏠 住宅IP 34.x
+  - SUB-RULE,(SRC-IP-CIDR,192.168.34.0/24),residential34
   # 192.168.32.x 继续向下走规则分流
 
   # 私有地址直连
   - RULE-SET,private_ip,DIRECT,no-resolve
   - RULE-SET,private_domain,DIRECT
-  # 个人直连（configs/rulesets/DIRECT-32.yaml）
+  # 个人直连（32 网段维护文件 DIRECT-32.yaml）
   - RULE-SET,direct_32,DIRECT
 
   # ── AI 平台 ──────────────────────────────────────────────────
@@ -973,6 +983,11 @@ rule-providers:
   direct_32:
     <<: *classical
     url: "https://raw.githubusercontent.com/hellohongyun/network/refs/heads/main/configs/rulesets/DIRECT-32.yaml"
+    format: yaml
+
+  direct_34:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/hellohongyun/network/refs/heads/main/configs/rulesets/DIRECT-34.yaml"
     format: yaml
 
   # ── AI ───────────────────────────────────────────────────────
