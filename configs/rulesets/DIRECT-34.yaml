@@ -1,8 +1,13 @@
 # DIRECT-34：192.168.34.x 住宅网段内「白名单直连」的目的侧规则
 # 必须与主配置 SUB-RULE,(SRC-IP-CIDR,192.168.34.0/24),residential34 配合使用
 # （本文件不含源 IP；避免其它网段误直连）
+# miyaip 中继会轮换 IP/端口；UDP+Tun 时常无 Sniff Host，需保留 IP-CIDR 与 DST-PORT
 payload:
   - DOMAIN,direct.miyaip.online
   - DOMAIN-SUFFIX,miyaip.online
   - IP-CIDR,111.206.234.174/32,no-resolve
+  - IP-CIDR,59.80.37.218/32,no-resolve
+  - IP-CIDR,59.80.37.222/32,no-resolve
   - DST-PORT,2480
+  - DST-PORT,2481
+  - DST-PORT,2482
