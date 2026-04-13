@@ -1,0 +1,10 @@
+# DIRECT-34-relays：34.x 子规则链中「先于域名 RULE-SET」加载
+# Tun(UDP) 无 Sniff Host 时，与域名混在同一 RULE-SET 可能不命中端口/IP；单独文件便于维护
+# 仅写 DST-PORT / IP-CIDR；源网段由 v6.yaml 的 SUB-RULE 限定
+payload:
+  - DST-PORT,2480
+  - DST-PORT,2481
+  - DST-PORT,2482
+  - IP-CIDR,111.206.234.174/32,no-resolve
+  - IP-CIDR,59.80.37.218/32,no-resolve
+  - IP-CIDR,59.80.37.222/32,no-resolve

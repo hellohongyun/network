@@ -35,7 +35,7 @@
 |---------|------|--------|
 | RES-01 | 源为住宅网段（如 34.x）时：命中白名单的目的流量 **DIRECT**，其余仍走该网段住宅出口 | P0 |
 | RES-02 | 动机：远程连接经住宅代理会导致延迟过高；仅对白名单「借道」国内直连出口 | P0 |
-| RES-03 | 白名单内容由本仓 `configs/rulesets/` 维护，与主配置中的 `SUB-RULE` + `RULE-SET` 对应 | P0 |
+| RES-03 | 白名单：`DIRECT-34-relays.yaml`（端口/IP）+ `DIRECT-34.yaml`（域名），由 `v6.yaml` 中 `SUB-RULE` + 两条 `RULE-SET` 引用 | P0 |
 
 ### 3.2 精细分流（32.x 网段）
 
@@ -89,7 +89,7 @@
 | NFR-02 | 规则集优先使用 .mrs 二进制格式（加载快、体积小） | P1 |
 | NFR-03 | 敏感信息（订阅 URL/住宅 IP 凭据）集中在文件顶部，便于管理 | P1 |
 | NFR-04 | 控制面板 (zashboard) 可远程管理策略 | P2 |
-| NFR-05 | 本仓自维护 rulesets：**文件名** = `策略简写-网段`（如 `DIRECT-32.yaml`、`DIRECT-34.yaml`）；**rule-provider 键** = 小写+下划线（如 `direct_32`、`direct_34`） | P0 |
+| NFR-05 | 本仓 rulesets：**文件名** = `策略简写-网段`（住宅白名单可拆 `DIRECT-34-relays.yaml` + `DIRECT-34.yaml`）；**provider 键** = 小写+下划线（如 `direct_34_relays`、`direct_34`） | P0 |
 
 ## 5. 约束条件
 
@@ -103,7 +103,7 @@
 1. 连接 ap-direct 的设备 100% 直连，无代理流量
 2. 连接 ap-rule 的设备按规则分流，各平台走对应策略组
 3. 连接 ap-Global 的设备 100% 走代理
-4. 连接 ap-34x：未命中白名单的流量走住宅 IP；命中 `DIRECT-34`（及后续同类规则集）的流量走直连
+4. 连接 ap-34x：未命中 `direct_34_relays` / `direct_34` 的流量走住宅 IP；命中任一则直连
 5. 视频平台优先使用最便宜机场，AI 平台优先使用最好机场
 6. 单机场掉线后 300 秒内自动切换到下一个机场
 7. 面板中应用策略组排列在地区组之前
@@ -118,4 +118,4 @@
 | v3 | — | 面板排序优化、机场精准分流（省流版/稳定版双轨）、平台覆盖扩充 |
 | v4 | 2026-04-10 | 修复 HK 不通、修复 DeepSeek 404、补全 IP 规则、AI 兜底、统一 .mrs |
 | v5 | 2026-04-11 | 5 机场阶梯式分层（主力/保底/优质三梯队）、层内多机场冗余、稳定版 A→C→B |
-| v6 | 2026-04-12 | 34.x 住宅网段白名单直连（SUB-RULE + `direct_34`）；`configs/rulesets` 按 `策略-网段` 命名（`DIRECT-32`/`DIRECT-34`）；配置落地见 `configs/v6.yaml` |
+| v6 | 2026-04-12 | 34.x 白名单：`direct_34_relays`（端口/IP）+ `direct_34`（域名）+ `SUB-RULE`；`configs/rulesets` 见 `DIRECT-32`、`DIRECT-34-relays`、`DIRECT-34`；主配置 `configs/v6.yaml` |
