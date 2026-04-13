@@ -98,7 +98,8 @@
 | 文件 | 用途 |
 | --- | --- |
 | `DIRECT-32.yaml` | 32.x 分流场景下的个人直连域名等 |
-| `DIRECT-34.yaml` | 34.x 住宅网段**白名单**（仅与 `SUB-RULE` 子链配合，避免其它 WiFi 误直连） |
+| `DIRECT-34-relays.yaml` | 34.x **端口/IP** 白名单（子链内先于域名 RULE-SET，Tun/UDP 更稳） |
+| `DIRECT-34.yaml` | 34.x **域名**白名单（与上一文件同子链） |
 
 详细约定见 `docs/TECHNICAL.md` §3.6 与 `docs/REQUIREMENTS.md` NFR-05。
 
@@ -129,7 +130,7 @@ YunTu:
 ```
 
 ### 第二步：上传到路由器
-将 `configs/v6.yaml` 上传到 OpenWrt 的 Mihomo 插件配置目录，在插件页面选择该配置文件并启用。若 `rule-providers` 引用了本仓库的 `DIRECT-32.yaml` / `DIRECT-34.yaml`，需将 **`configs/rulesets/` 一并推送到你 raw URL 对应的 Git 分支**（或改为指向你 fork 后的地址）。
+将 `configs/v6.yaml` 上传到 OpenWrt 的 Mihomo 插件配置目录，在插件页面选择该配置文件并启用。若 `rule-providers` 引用了本仓库的 `DIRECT-32.yaml`、`DIRECT-34-relays.yaml`、`DIRECT-34.yaml`，需将 **`configs/rulesets/` 一并推送到你 raw URL 对应的 Git 分支**（或改为指向你 fork 后的地址）。
 
 ### 第三步：打开面板
 浏览器访问 `http://路由器IP:9090/ui`，你会看到：
@@ -197,7 +198,7 @@ YunTu:
 | 指标 | 数值 |
 | --- | --- |
 | 策略组总数 | 59 个 |
-| 规则集总数 | 约 40 个（含本仓 `DIRECT-32` / `DIRECT-34`；其余以 .mrs / 上游 classical 为主） |
+| 规则集总数 | 约 41 个（含本仓 `DIRECT-32`、`DIRECT-34-relays`、`DIRECT-34`；其余以 .mrs / 上游 classical 为主） |
 | 路由规则数 | 以 `v6.yaml` 内 `rules` 列表为准（v6 含 `SUB-RULE` 入口，与 v5 条数略有差异） |
 | 支持网段数 | 4 个（可扩展至 222 个） |
 | 支持机场数 | 5 个（3 梯队：主力 2 + 保底 2 + 优质 1） |
@@ -220,7 +221,8 @@ YunTu:
 │   ├── v6.yaml               ← 主配置（推荐部署到路由器）
 │   ├── rulesets/             ← 本仓自维护 classical 规则（raw 供 rule-providers 拉取）
 │   │   ├── DIRECT-32.yaml    ← 32 网段相关直连列表
-│   │   └── DIRECT-34.yaml    ← 34.x 住宅白名单（远程桌面等）
+│   │   ├── DIRECT-34-relays.yaml ← 34.x 端口/IP（Tun/UDP）
+│   │   └── DIRECT-34.yaml    ← 34.x 域名
 │   ├── v5.yaml               ← 历史版本
 │   ├── v4.yaml               ← 历史版本
 │   └── v3.yaml               ← 历史版本

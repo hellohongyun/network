@@ -132,9 +132,10 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | rule-provider 键 | 文件 | 说明 |
 |------------------|------|------|
 | `direct_32` | `DIRECT-32.yaml` | 32.x 分流场景下个人维护的直连域名等（`RULE-SET,direct_32,DIRECT`） |
-| `direct_34` | `DIRECT-34.yaml` | **仅**在 `sub-rules.residential34` 内引用；34.x 源网段白名单目的（域名/IP/端口），避免其它网段误直连 |
+| `direct_34_relays` | `DIRECT-34-relays.yaml` | **仅**在 `sub-rules.residential34` 内、**先于** `direct_34`；Tun/UDP 下端口与落地 IP（无 Sniff 时与域名拆文件更稳） |
+| `direct_34` | `DIRECT-34.yaml` | 同上子链内第二步；**仅域名** |
 
-**命名约定**：文件名 `策略简写-网段.yaml`（大写段名与网段数字）；键名 `小写_数字`。不再保留仅为举例、未接入配置的占位文件。
+**命名约定**：文件名 `策略简写-网段.yaml`；住宅网段需拆 **`-relays`**（端口/IP）与主文件（域名）时，用 `DIRECT-34-relays.yaml` + `DIRECT-34.yaml`，键名 `direct_34_relays`、`direct_34`。
 
 ## 4. YAML 编码规范
 
@@ -167,8 +168,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | 机场子组 | `[机场等级] + 地区名` | `[C] 香港` |
 | 规则集名 | `服务名_类型` | `telegram_domain`, `telegram_ip` |
 | 锚点名 | `小写_缩写` | `sub_ut_c`, `region_eco` |
-| 本仓 rulesets 文件名 | `策略简写-网段.yaml` | `DIRECT-32.yaml`, `DIRECT-34.yaml` |
-| 本仓 rulesets provider 键 | `小写_网段数字` | `direct_32`, `direct_34` |
+| 本仓 rulesets 文件名 | `策略简写-网段.yaml`；住宅白名单可拆 `-relays` | `DIRECT-32.yaml`, `DIRECT-34-relays.yaml`, `DIRECT-34.yaml` |
+| 本仓 rulesets provider 键 | `小写_网段数字`；relays 加后缀 | `direct_32`, `direct_34_relays`, `direct_34` |
 
 ### 4.3 锚点使用规范
 
@@ -255,8 +256,8 @@ proxy: CrossWall   # 替代原来的 proxy: DIRECT
 
 | 变更项 | 说明 |
 |--------|------|
-| 34.x 住宅网段 | 由单行 `SRC-IP-CIDR → 🏠` 改为 `SUB-RULE` + `sub-rules`：`RULE-SET,direct_34,DIRECT` 后 `MATCH,🏠 住宅IP 34.x` |
-| 白名单维护 | `configs/rulesets/DIRECT-34.yaml`（远程桌面等域名/端口/IP）；`DIRECT-32.yaml` 承接原 `prdiy.yaml` |
+| 34.x 住宅网段 | `SUB-RULE` + `sub-rules`：`direct_34_relays` → `direct_34` → `MATCH,🏠 住宅IP 34.x` |
+| 白名单维护 | `DIRECT-34-relays.yaml`（端口/IP）+ `DIRECT-34.yaml`（域名），避免 Tun/UDP 单 RULE-SET 不命中；`DIRECT-32.yaml` 承接原 `prdiy` |
 | 仓库 rulesets 命名 | `策略-网段` 文件名 + `direct_*` provider 键；删除未使用的 `proxy-32` 举例文件 |
 | 配置主文件 | `configs/v6.yaml`；v3/v4/v5 中个人直连 provider 更名为 `direct_32` 并指向 `DIRECT-32.yaml` |
 

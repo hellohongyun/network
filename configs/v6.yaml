@@ -871,10 +871,11 @@ proxy-groups:
     filter: "(?=.*(台|TW|(?i)Taiwan|Taipei))^((?!(港|日|韩|新|美|韓)).)*$"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 子规则：住宅网段 34.x（RULE-SET direct_34 白名单直连，其余 MATCH 住宅出口）
+# 子规则：住宅网段 34.x（先 relays 再域名；Tun+UDP 时单文件 RULE-SET 易不命中端口/IP）
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 sub-rules:
   residential34:
+    - RULE-SET,direct_34_relays,DIRECT
     - RULE-SET,direct_34,DIRECT
     - MATCH,🏠 住宅IP 34.x
 
@@ -885,7 +886,7 @@ rules:
   # VLAN 网段路由（最高优先级）
   - SRC-IP-CIDR,192.168.31.0/24,DIRECT,no-resolve
   - SRC-IP-CIDR,192.168.33.0/24,🌐 全局代理 33.x,no-resolve
-  # 34.x：仅 RULE-SET direct_34 命中直连，其余仍走 🏠 住宅IP 34.x
+  # 34.x：子链内 direct_34_relays（端口/IP）→ direct_34（域名）→ MATCH 住宅
   - SUB-RULE,(SRC-IP-CIDR,192.168.34.0/24),residential34
   # 192.168.32.x 继续向下走规则分流
 
@@ -983,6 +984,11 @@ rule-providers:
   direct_32:
     <<: *classical
     url: "https://raw.githubusercontent.com/hellohongyun/network/refs/heads/main/configs/rulesets/DIRECT-32.yaml"
+    format: yaml
+
+  direct_34_relays:
+    <<: *classical
+    url: "https://raw.githubusercontent.com/hellohongyun/network/refs/heads/main/configs/rulesets/DIRECT-34-relays.yaml"
     format: yaml
 
   direct_34:

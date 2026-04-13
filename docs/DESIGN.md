@@ -52,6 +52,7 @@
 # 子规则（与 rules 同级，见 Mihomo sub-rule 文档）
 sub-rules:
   residential34:
+    - RULE-SET,direct_34_relays,DIRECT
     - RULE-SET,direct_34,DIRECT
     - MATCH,🏠 住宅IP 34.x
 
@@ -67,8 +68,8 @@ rules:
 - 31.x 用 `DIRECT`，不走任何代理逻辑
 - 32.x **不写任何 SRC-IP-CIDR 规则**，让流量自然落入后续的 RULE-SET 匹配
 - 33.x 指向一个 `select` 策略组，用户可在面板切换全局出口地区
-- **34.x（v6）**：`SUB-RULE,(SRC-IP-CIDR,192.168.34.0/24),residential34` 进入子链；先 `RULE-SET,direct_34` 命中则 **DIRECT**（远程桌面等低延迟需求），未命中则 **`MATCH` → 住宅 IP 策略组**（默认仍像住宅出口）
-- `DIRECT-34.yaml` 中**只写目的侧**条件（域名、IP、端口等），**不写源 IP**；源网段由上述 `SUB-RULE` 限定，避免 31/32/33 误直连
+- **34.x（v6）**：`SUB-RULE,(SRC-IP-CIDR,192.168.34.0/24),residential34` 进入子链；**先** `RULE-SET,direct_34_relays`（仅 `DST-PORT`/`IP-CIDR`），**再** `RULE-SET,direct_34`（域名）。Tun+UDP 无 Sniff 时，端口/IP 与域名**分文件**可避免单 RULE-SET 不命中；未命中则 **`MATCH` → 住宅**
+- `DIRECT-34-relays.yaml` / `DIRECT-34.yaml` 均**不写源 IP**；源网段由 `SUB-RULE` 限定
 
 ### 2.3 扩展方式
 
@@ -77,9 +78,9 @@ rules:
 **住宅类网段且需白名单（推荐与 v6 一致）**：
 
 1. 在 `proxies` / `proxy-groups` 中增加住宅节点与出口组（同前）
-2. 新增 `configs/rulesets/DIRECT-{网段}.yaml`（classical `payload`），维护直连白名单
-3. 增加 `rule-providers.direct_{网段}` 指向该 raw URL
-4. 增加 `sub-rules.residential{网段}`：`RULE-SET,direct_{网段},DIRECT` → `MATCH,🏠 住宅IP …`
+2. 若需 Tun/UDP 下稳定命中：新增 **`DIRECT-{网段}-relays.yaml`**（仅端口/IP）与 **`DIRECT-{网段}.yaml`**（域名），均为 classical `payload`
+3. 增加 `rule-providers.direct_{网段}_relays` 与 `direct_{网段}` 指向对应 raw URL
+4. 增加 `sub-rules.residential{网段}`：`RULE-SET,direct_{网段}_relays,DIRECT` → `RULE-SET,direct_{网段},DIRECT` → `MATCH,🏠 住宅IP …`
 5. 在 `rules` 顶部用 `SUB-RULE,(SRC-IP-CIDR,…),residential{网段}` 作为该网段入口
 
 ### 2.4 本仓 `configs/rulesets` 命名约定（v6）
@@ -87,9 +88,10 @@ rules:
 | 文件名模式 | 含义 | 主配置中的典型用法 |
 |-----------|------|-------------------|
 | `DIRECT-32.yaml` | 与 **32.x 分流场景**相关的个人直连目的列表 | `RULE-SET,direct_32,DIRECT`（与 v5 前 `prdiy` 等价，全局命中即直连，语义上服务「规则分流网段」维护） |
-| `DIRECT-34.yaml` | **34.x 住宅网段**内白名单的**目的侧**规则 | 仅出现在 `sub-rules.residential34` 内，由 `SRC-IP` 限定源 |
+| `DIRECT-34-relays.yaml` | 34.x 白名单：**端口与落地 IP**（先于域名 RULE-SET） | `RULE-SET,direct_34_relays,DIRECT` |
+| `DIRECT-34.yaml` | 34.x 白名单：**域名** | `RULE-SET,direct_34,DIRECT`；与上一行同处 `sub-rules.residential34` |
 
-**rule-provider 键名**：小写 + 下划线，与文件名对应，如 `direct_32`、`direct_34`。今后新增同类文件沿用 **`策略简写-网段`**（不含 `proxy-32` 等仅为举例、未落地的占位文件）。
+**rule-provider 键名**：小写 + 下划线，与文件名对应，如 `direct_32`、`direct_34_relays`、`direct_34`。同类住宅网段可增加 `DIRECT-35-relays.yaml` 等。
 
 ## 3. 机场阶梯式分层体系设计
 
@@ -188,7 +190,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
   │
   ├─ SRC-IP-CIDR 31.x → DIRECT（直链网段，立即返回）
   ├─ SRC-IP-CIDR 33.x → 全局代理（全局网段，立即返回）
-  ├─ SUB-RULE 源为 34.x → 子链：RULE-SET direct_34 → DIRECT；否则 MATCH → 🏠 住宅IP 34.x
+  ├─ SUB-RULE 源为 34.x → 子链：direct_34_relays → direct_34 → DIRECT；否则 MATCH → 🏠 住宅IP 34.x
   │
   │  ↓ 32.x 网段继续向下
   │
@@ -311,5 +313,5 @@ sub_ut_b: use: [YiYuan]
 ### 7.5 住宅网段白名单与文档索引（v6）
 
 - **需求与验收**：`REQUIREMENTS.md`（NET-04、RES-*、NFR-05）
-- **落地配置**：`configs/v6.yaml`、`configs/rulesets/DIRECT-34.yaml`
+- **落地配置**：`configs/v6.yaml`、`configs/rulesets/DIRECT-34-relays.yaml`、`configs/rulesets/DIRECT-34.yaml`
 - **内核说明**：[Route Rules](https://wiki.metacubex.one/en/config/rules/)（`SUB-RULE`）、[sub-rule](https://wiki.metacubex.one/en/config/sub-rule/)
