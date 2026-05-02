@@ -86,8 +86,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | private_domain | private | ✅ 200 |
 | geolocation_not_cn | geolocation-!cn | ✅ 200 |
 | cn_domain | cn | ✅ 200 |
-| amazon_domain | amazon | ✅ 200（v7 SOCKS5） |
-| bing_domain | bing | ✅ 200（v7 SOCKS5） |
+| amazon_domain | amazon | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
+| bing_domain | bing | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
 
 ### 3.2 MetaCubeX geoip（behavior: ipcidr, format: mrs）
 
@@ -114,8 +114,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | claude_domain | `.../Clash/Claude/Claude.yaml` | yaml | ✅ 200 |
 | gemini_domain | `.../Clash/Gemini/Gemini.yaml` | yaml | ✅ 200 |
 | crypto_domain | `.../Clash/Cryptocurrency/Cryptocurrency.list` | text | ✅ 200 |
-| ebay_domain | `.../Clash/eBay/eBay.yaml` | yaml | ✅ 200（v7 SOCKS5） |
-| shopify_domain | `.../Clash/Shopify/Shopify.yaml` | yaml | ✅ 200（v7 SOCKS5） |
+| ebay_domain | `.../Clash/eBay/eBay.yaml` | yaml | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
+| shopify_domain | `.../Clash/Shopify/Shopify.yaml` | yaml | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
 
 ### 3.4 已弃用/404 的 URL（避免使用）
 
@@ -227,81 +227,93 @@ claude_domain:
 
 ### 4.6 SOCKS5 配置规范（v7）
 
-v7 引入 SOCKS5 入站监听，用于将指定流量经独立端口导入后走专属策略组（load-balance），实现电商/搜索等场景的 IP 固定与负载均衡。
+v7 引入 SOCKS5 入站监听，用于爬虫/批量抓取场景。26 个平台策略组与 32.x 一一对应，每组第 1 选项引用对应 32.x 组，实现节点跟随和 IP 信誉共享。
 
 #### 4.6.1 listeners 配置
 
-在 `一、全局配置` 之后、`二、Web 控制面板` 之前新增 `listeners` 段：
+在 `四-B` 段配置 SOCKS5 入站：
 
 ```yaml
 listeners:
   - name: socks5-in
     type: socks
-    port: 7891          # SOCKS5 独立监听端口，与 mixed-port 7890 区分
-    proxy: 🛒 SOCKS5 负载  # 该端口入站流量直接绑定的策略组
+    port: 7891          # SOCKS5 独立监听端口
+    listen: 0.0.0.0
+    udp: true
+    rule: socks5-rules  # 绑定到专用 sub-rules
+    users:
+      - username: crawler1
+        password: ★填写密码★
 ```
 
 关键点：
 - `type: socks` 表示 SOCKS5 协议入站
-- `proxy` 字段指定该端口流量走哪个策略组，绕过主路由规则的策略组选择
-- 不同端口可绑定不同策略组，实现多通道隔离
+- `rule` 字段绑定独立 sub-rules 子链，SOCKS5 流量不经过主路由 `rules`
+- `users` 配置用户认证，未认证连接被拒绝
+- 不同端口可绑定不同 rule 链，实现多通道隔离
 
-#### 4.6.2 sub-rules 子规则配合
+#### 4.6.2 SOCKS5 策略组（select，引用 32.x 组）
 
-SOCKS5 端口绑定的策略组仍需通过 `sub-rules` 实现住宅网段白名单：
+每个 SOCKS5 策略组使用 `select` 类型，第一选项引用对应 32.x 策略组：
+
+```yaml
+- name: "🤖 !Claude SOCKS5"
+  type: select
+  proxies:
+    - "🤖 Claude 32.x"   # 第1选项：引用 32.x 组，自动跟随浏览器节点
+    - "🇺🇸 美国★"         # 第2+选项：手动指定节点（★稳定/省流）
+    - "🇯🇵 日本★"
+    - "🇸🇬 新加坡★"
+    - "🇭🇰 香港★"
+    - "🇹🇼 台湾★"
+    - "🇺🇸 美国"
+    - "🇯🇵 日本"
+    - "🇸🇬 新加坡"
+    - "🇭🇰 香港"
+    - "🇬🇧 英国"
+    - "🇩🇪 德国"
+```
+
+**IP 信誉共享原理**：浏览器在 32.x 中选择了日本★节点 → 出口 IP 为 1.2.3.4 → 浏览器完成人机验证 → IP 获得信誉 → SOCKS5 组第 1 选项引用同一 32.x 组 → 爬虫也走日本★ → 出口 IP 同为 1.2.3.4 → 继承 IP 信誉。
+
+**兜底组**：
+```yaml
+- name: "🌏 SOCKS5-国内"
+  type: select
+  proxies: [香港★, 香港, 日本★, 日本, 新加坡★, 新加坡, 台湾★, 台湾]
+
+- name: "🌍 SOCKS5-国外"
+  type: select
+  proxies: [🚀 默认出口 32.x, 美国★, 日本★, 新加坡★, 香港★, 台湾★, 美国, 日本, 新加坡, 香港, 英国, 德国]
+```
+
+#### 4.6.3 sub-rules 子规则配合
+
+SOCKS5 入站绑定独立 `socks5-rules` 子链，与住宅网段的 `residential34` 子链并列：
 
 ```yaml
 sub-rules:
-  residential34:                              # 复用 v6 已有子链
+  residential34:                              # v6 已有子链
     - RULE-SET,direct_34_relays,DIRECT
     - RULE-SET,direct_34,DIRECT
     - MATCH,🏠 住宅IP 34.x
+  socks5-rules:                               # v7 新增子链
+    - RULE-SET,private_domain,DIRECT
+    - RULE-SET,claude_domain,🤖 !Claude SOCKS5
+    # ... 26 个平台规则（见 DESIGN.md §8.4）
+    - MATCH,🌍 SOCKS5-国外
 ```
-
-SOCKS5 策略组中的节点若为住宅 IP，需引用相同 `sub-rules` 以保证白名单生效。
-
-#### 4.6.3 load-balance 策略组
-
-SOCKS5 专属策略组使用 `load-balance` 类型，将流量均匀分配到多个住宅节点：
-
-```yaml
-- name: 🛒 SOCKS5 负载
-  type: load-balance
-  strategy: round-robin        # 轮询分配（可选 consistent-hashing 基于源IP哈希）
-  proxies:
-    - 🇺🇸 美国★
-    - 🇯🇵 日本★
-    - 🇩🇪 德国★
-  url: https://www.gstatic.com/generate_204
-  interval: 300
-```
-
-关键点：
-- `strategy: round-robin` — 轮询，每次请求换一个节点，适合电商浏览防风控
-- `strategy: consistent-hashing` — 同一源 IP 始终走同一节点，适合需要 IP 粘性的场景
-- 节点池建议选用住宅 IP 或同一地区节点，避免频繁切换地区触发风控
-
-**v7 实际使用的策略**：`consistent-hashing`（一致性哈希），同一目标域名始终走同一出口节点，避免频繁切换 IP 触发风控。
-
-**三种 load-balance 策略对比**：
-
-| 策略 | 行为 | 适用场景 | 不适用场景 |
-|------|------|---------|-----------|
-| `consistent-hashing` | 同一目标域名 → 同一出口节点 | 需会话保持的爬虫（登录态、购物车） | 需要每次换 IP 的无状态抓取 |
-| `round-robin` | 轮询，每次请求换节点 | 无状态批量抓取、价格监控 | 需登录的网站（会话断开） |
-| `sticky-sessions` | 同一会话保持同一 IP | 长连接场景 | 短连接批量请求 |
-
-**为什么 32.x 不用 load-balance**：日常使用（浏览/开发/社交）需保持同一 IP，频繁切换会触发风控（Google 验证码、登录态丢失）。32.x 已有 `fallback` 故障转移足够。详见 `docs/DESIGN.md` §8.4。
 
 #### 4.6.4 SOCKS5 策略组命名规范
 
 | 类型 | 规范 | 示例 |
 |------|------|------|
-| SOCKS5 策略组 | `emoji + SOCKS5 + 用途` | `🛒 SOCKS5 负载` |
+| SOCKS5 应用组 | `emoji + 平台名 + SOCKS5` | `🤖 !Claude SOCKS5` |
+| SOCKS5 兜底组 | `emoji + SOCKS5 + 用途` | `🌍 SOCKS5-国外` |
 | SOCKS5 listener 名 | `小写-短横线` | `socks5-in` |
-| SOCKS5 专用规则集 | `服务名_domain`（复用现有命名） | `amazon_domain`, `ebay_domain` |
+| 严格封控平台 | `!` 前缀 + 平台名 + SOCKS5 | `🤖 !Claude SOCKS5` |
 
-SOCKS5 相关的规则集（amazon/ebay/shopify/bing）仅在 SOCKS5 策略组的路由规则中引用，不进入主路由 `rules` 列表。
+SOCKS5 策略组使用的规则集（claude_domain、openai_domain 等）复用 32.x 已有规则集，不单独维护。
 
 ## 5. 常见问题排查
 
@@ -331,7 +343,50 @@ proxy: CrossWall   # 替代原来的 proxy: DIRECT
 
 验证：在面板中检查 `[C] 日本` 等子组是否有节点。如果为空，fallback 会自动跳过该子组。
 
-### 5.4 健康检查通过但网站不通
+### 5.4 SOCKS5 调试
+
+**连通性验证**：
+
+```bash
+# 基础连通测试
+curl -x socks5://crawler1:password@192.168.31.1:7891 http://httpbin.org/ip
+
+# 如果返回 IP，说明 SOCKS5 通道正常
+# 如果连接失败，检查 listeners 配置和用户认证
+```
+
+**目标平台返回 403**：
+
+如果基础连通正常但目标平台（如 claude.ai）返回 403，是 TLS 指纹问题，不是 IP 问题。必须使用 curl_cffi：
+
+```python
+from curl_cffi import requests
+
+# 使用 curl_cffi 模拟 Chrome TLS 指纹
+response = requests.get(
+    "https://claude.ai",
+    impersonate="chrome124",
+    proxies={"https": "socks5://crawler1:password@192.168.31.1:7891"}
+)
+print(response.status_code)  # 200（而非标准 curl 的 403）
+```
+
+**调试决策树**：
+
+```
+爬虫 403
+├─ 用浏览器(32.x)访问同一网站
+│  ├─ 浏览器正常 → SOCKS5 403 → TLS 指纹问题
+│  │  → 确认使用 curl_cffi + impersonate="chrome124"
+│  └─ 浏览器也 403 → IP 被封
+│     → 在面板切换 32.x 节点
+│     → 浏览器验证新节点可用
+│     → 爬虫走同一节点（第1选项自动跟随）
+```
+
+**IP 信誉预热**：新节点或切换后，先用浏览器访问目标站点并完成人机验证，再让爬虫使用同一节点。
+
+### 5.5 健康检查通过但网站不通
 
 原因：健康检查只测试 `gstatic.com/generate_204`，不代表所有网站都能访问。
 解决：v4 起默认出口以 ★稳定版（A→C→B）为首选；v5 在 `🚀 默认出口 32.x` 中同时列出省流版五地，便于在面板切到 C→B→A 省梯队费用。
@@ -342,12 +397,15 @@ proxy: CrossWall   # 替代原来的 proxy: DIRECT
 
 | 变更项 | 说明 |
 |--------|------|
-| SOCKS5 入站监听 | 新增 `listeners` 段，SOCKS5 独立端口 7891，流量直接绑定专属策略组 |
-| load-balance 策略组 | 新增 `🌍 SOCKS5-国外`，`strategy: consistent-hashing` 一致性哈希分发，同一目标域名始终走同一出口节点 |
-| SOCKS5 专用规则集 | 新增 `amazon_domain`（MetaCubeX geosite）、`ebay_domain`（blackmatrix7）、`shopify_domain`（blackmatrix7）、`bing_domain`（MetaCubeX geosite） |
-| 参考资源 | §2.1 新增 listeners（SOCKS5）和 load-balance 文档链接 |
-| 编码规范 | §4.2 新增 SOCKS5 策略组/listener 命名规范；§4.6 新增 SOCKS5 配置规范（listeners + sub-rules + load-balance） |
-| 设计决策 | 32.x 不加 load-balance（日常使用需保持同一 IP）；SOCKS5 国内流量走代理非 DIRECT（爬虫防暴露真实 IP） |
+| SOCKS5 入站监听 | 新增 `listeners` 段，SOCKS5 独立端口 7891，多用户认证（crawler1/2/3），绑定 `socks5-rules` 子链 |
+| 26 个平台镜像策略组 | SOCKS5 策略组与 32.x 一一对应（24 应用 + 2 兜底），每组第 1 选项引用对应 32.x 组，共享节点和 IP 信誉 |
+| socks5-rules 规则链 | 独立子链，覆盖全部 24 个平台 + 国内/国外兜底，复用现有 rule-providers |
+| TLS 指纹检测 | Cloudflare 通过 JA3/JA4 检测非浏览器 TLS 指纹；爬虫需使用 curl_cffi + `impersonate="chrome124"` |
+| IP 信誉预热 | 新节点/切换节点后，浏览器先访问目标站完成人机验证，爬虫再走同一节点继承信誉 |
+| 参考资源 | §2.1 新增 listeners（SOCKS5）文档链接 |
+| 编码规范 | §4.2 新增 SOCKS5 策略组命名规范（`emoji + 平台名 + SOCKS5`，`!` 前缀表示严格封控）；§4.6 重写 SOCKS5 配置规范 |
+| 设计决策 | SOCKS5 使用 `select` 类型（非 load-balance），通过引用 32.x 组实现节点跟随；国内流量走代理非 DIRECT（隐藏爬虫真实 IP） |
+| 调试流程 | 新增 §5.4 SOCKS5 调试（连通性验证、403 决策树、curl_cffi 示例） |
 | 配置主文件 | `configs/v7.yaml` |
 
 ### v6（2026-04-12）
