@@ -32,7 +32,7 @@
 | 代理集 | https://wiki.metacubex.one/config/proxy-providers/ | health-check/exclude-filter/override 等 |
 | 入站配置 | https://wiki.metacubex.one/config/inbound/ | TUN/sniffer 等 |
 | 入站监听 | https://wiki.metacubex.one/config/inbound/listeners/socks | SOCKS5 listeners 配置（v7） |
-| 负载均衡 | https://wiki.metacubex.one/config/proxy-groups/load-balance | load-balance 策略组（v7） |
+| 负载均衡 | https://wiki.metacubex.one/config/proxy-groups/load-balance | load-balance 策略组（备用参考，v7 SOCKS5 未使用） |
 | 完整示例 | https://github.com/MetaCubeX/mihomo/blob/Meta/docs/config.yaml | 官方示例配置 |
 
 ### 2.2 规则集仓库
@@ -176,7 +176,7 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | 锚点名 | `小写_缩写` | `sub_ut_c`, `region_eco` |
 | 本仓 rulesets 文件名 | `策略简写-网段.yaml`；住宅白名单可拆 `-relays` | `DIRECT-32.yaml`, `DIRECT-34-relays.yaml`, `DIRECT-34.yaml` |
 | 本仓 rulesets provider 键 | `小写_网段数字`；relays 加后缀 | `direct_32`, `direct_34_relays`, `direct_34` |
-| SOCKS5 策略组（v7） | `emoji + SOCKS5 + 用途` | `🛒 SOCKS5 负载` |
+| SOCKS5 策略组（v7） | `emoji + 平台名 + SOCKS5`（严格封控平台加 `!` 前缀） | `🤖 !Claude SOCKS5`, `📹 YouTube SOCKS5` |
 | SOCKS5 listener 名（v7） | `小写-短横线` | `socks5-in` |
 
 ### 4.3 锚点使用规范
