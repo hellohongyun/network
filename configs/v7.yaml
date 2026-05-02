@@ -760,7 +760,7 @@ proxy-groups:
 
   # ── AI 平台 ─────────────────────────────────────────────────
 
-  - name: "🤖 Claude SOCKS5"
+  - name: "🤖 !Claude SOCKS5"
     type: select
     proxies: &s5_strict
       - "🏠 美国住宅-34"
@@ -776,7 +776,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🤖 ChatGPT SOCKS5"
+  - name: "🤖 !ChatGPT SOCKS5"
     type: select
     proxies: *s5_strict
 
@@ -800,7 +800,7 @@ proxy-groups:
     type: select
     proxies: *s5_stable
 
-  - name: "🤖 AI SOCKS5"
+  - name: "🤖 !AI SOCKS5"
     type: select
     proxies: *s5_strict
 
@@ -816,7 +816,7 @@ proxy-groups:
 
   # ── 电商平台 ─────────────────────────────────────────────────
 
-  - name: "🛒 Amazon SOCKS5"
+  - name: "🛒 !Amazon SOCKS5"
     type: select
     proxies: *s5_strict
 
@@ -830,15 +830,15 @@ proxy-groups:
 
   # ── 社交媒体 ─────────────────────────────────────────────────
 
-  - name: "🐦 Twitter SOCKS5"
+  - name: "🐦 !Twitter SOCKS5"
     type: select
     proxies: *s5_strict
 
-  - name: "📸 Instagram SOCKS5"
+  - name: "📸 !Instagram SOCKS5"
     type: select
     proxies: *s5_strict
 
-  - name: "👤 Facebook SOCKS5"
+  - name: "👤 !Facebook SOCKS5"
     type: select
     proxies: *s5_strict
 
@@ -1068,11 +1068,11 @@ sub-rules:
     - RULE-SET,private_ip,DIRECT,no-resolve
 
     # ── AI 平台 ──
-    - RULE-SET,claude_domain,🤖 Claude SOCKS5
-    - RULE-SET,openai_domain,🤖 ChatGPT SOCKS5
+    - RULE-SET,claude_domain,🤖 !Claude SOCKS5
+    - RULE-SET,openai_domain,🤖 !ChatGPT SOCKS5
     - RULE-SET,gemini_domain,🔮 Gemini SOCKS5
     - RULE-SET,deepseek_domain,🐋 DeepSeek SOCKS5
-    - RULE-SET,ai_catchall,🤖 AI SOCKS5
+    - RULE-SET,ai_catchall,🤖 !AI SOCKS5
 
     # ── 搜索引擎 ──
     - RULE-SET,google_domain,🍀 Google SOCKS5
@@ -1080,16 +1080,16 @@ sub-rules:
     - RULE-SET,bing_domain,🔍 Bing SOCKS5
 
     # ── 电商平台 ──
-    - RULE-SET,amazon_domain,🛒 Amazon SOCKS5
+    - RULE-SET,amazon_domain,🛒 !Amazon SOCKS5
     - RULE-SET,ebay_domain,🛒 eBay SOCKS5
     - RULE-SET,shopify_domain,🛒 Shopify SOCKS5
 
     # ── 社交媒体 ──
-    - RULE-SET,twitter_domain,🐦 Twitter SOCKS5
-    - RULE-SET,twitter_ip,🐦 Twitter SOCKS5,no-resolve
-    - RULE-SET,instagram_domain,📸 Instagram SOCKS5
-    - RULE-SET,facebook_domain,👤 Facebook SOCKS5
-    - RULE-SET,facebook_ip,👤 Facebook SOCKS5,no-resolve
+    - RULE-SET,twitter_domain,🐦 !Twitter SOCKS5
+    - RULE-SET,twitter_ip,🐦 !Twitter SOCKS5,no-resolve
+    - RULE-SET,instagram_domain,📸 !Instagram SOCKS5
+    - RULE-SET,facebook_domain,👤 !Facebook SOCKS5
+    - RULE-SET,facebook_ip,👤 !Facebook SOCKS5,no-resolve
     - RULE-SET,telegram_domain,📲 Telegram SOCKS5
     - RULE-SET,telegram_ip,📲 Telegram SOCKS5,no-resolve
 
