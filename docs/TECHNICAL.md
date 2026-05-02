@@ -1,8 +1,8 @@
 # 技术规范文档
 
 > 项目：Mihomo 多网段精细分流配置  
-> 版本：v6  
-> 最后更新：2026-04-12
+> 版本：v7
+> 最后更新：2026-05-02
 
 ---
 
@@ -31,6 +31,8 @@
 | 规则集 | https://wiki.metacubex.one/config/rule-providers/ | behavior/format/interval 等 |
 | 代理集 | https://wiki.metacubex.one/config/proxy-providers/ | health-check/exclude-filter/override 等 |
 | 入站配置 | https://wiki.metacubex.one/config/inbound/ | TUN/sniffer 等 |
+| 入站监听 | https://wiki.metacubex.one/config/inbound/listeners/socks | SOCKS5 listeners 配置（v7） |
+| 负载均衡 | https://wiki.metacubex.one/config/proxy-groups/load-balance | load-balance 策略组（v7） |
 | 完整示例 | https://github.com/MetaCubeX/mihomo/blob/Meta/docs/config.yaml | 官方示例配置 |
 
 ### 2.2 规则集仓库
@@ -84,6 +86,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | private_domain | private | ✅ 200 |
 | geolocation_not_cn | geolocation-!cn | ✅ 200 |
 | cn_domain | cn | ✅ 200 |
+| amazon_domain | amazon | ✅ 200（v7 SOCKS5） |
+| bing_domain | bing | ✅ 200（v7 SOCKS5） |
 
 ### 3.2 MetaCubeX geoip（behavior: ipcidr, format: mrs）
 
@@ -110,6 +114,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | claude_domain | `.../Clash/Claude/Claude.yaml` | yaml | ✅ 200 |
 | gemini_domain | `.../Clash/Gemini/Gemini.yaml` | yaml | ✅ 200 |
 | crypto_domain | `.../Clash/Cryptocurrency/Cryptocurrency.list` | text | ✅ 200 |
+| ebay_domain | `.../Clash/eBay/eBay.yaml` | yaml | ✅ 200（v7 SOCKS5） |
+| shopify_domain | `.../Clash/Shopify/Shopify.yaml` | yaml | ✅ 200（v7 SOCKS5） |
 
 ### 3.4 已弃用/404 的 URL（避免使用）
 
@@ -170,6 +176,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | 锚点名 | `小写_缩写` | `sub_ut_c`, `region_eco` |
 | 本仓 rulesets 文件名 | `策略简写-网段.yaml`；住宅白名单可拆 `-relays` | `DIRECT-32.yaml`, `DIRECT-34-relays.yaml`, `DIRECT-34.yaml` |
 | 本仓 rulesets provider 键 | `小写_网段数字`；relays 加后缀 | `direct_32`, `direct_34_relays`, `direct_34` |
+| SOCKS5 策略组（v7） | `emoji + SOCKS5 + 用途` | `🛒 SOCKS5 负载` |
+| SOCKS5 listener 名（v7） | `小写-短横线` | `socks5-in` |
 
 ### 4.3 锚点使用规范
 
@@ -217,6 +225,84 @@ claude_domain:
 (?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美|英|法|德|澳|韓)).)*$
 ```
 
+### 4.6 SOCKS5 配置规范（v7）
+
+v7 引入 SOCKS5 入站监听，用于将指定流量经独立端口导入后走专属策略组（load-balance），实现电商/搜索等场景的 IP 固定与负载均衡。
+
+#### 4.6.1 listeners 配置
+
+在 `一、全局配置` 之后、`二、Web 控制面板` 之前新增 `listeners` 段：
+
+```yaml
+listeners:
+  - name: socks5-in
+    type: socks
+    port: 7891          # SOCKS5 独立监听端口，与 mixed-port 7890 区分
+    proxy: 🛒 SOCKS5 负载  # 该端口入站流量直接绑定的策略组
+```
+
+关键点：
+- `type: socks` 表示 SOCKS5 协议入站
+- `proxy` 字段指定该端口流量走哪个策略组，绕过主路由规则的策略组选择
+- 不同端口可绑定不同策略组，实现多通道隔离
+
+#### 4.6.2 sub-rules 子规则配合
+
+SOCKS5 端口绑定的策略组仍需通过 `sub-rules` 实现住宅网段白名单：
+
+```yaml
+sub-rules:
+  residential34:                              # 复用 v6 已有子链
+    - RULE-SET,direct_34_relays,DIRECT
+    - RULE-SET,direct_34,DIRECT
+    - MATCH,🏠 住宅IP 34.x
+```
+
+SOCKS5 策略组中的节点若为住宅 IP，需引用相同 `sub-rules` 以保证白名单生效。
+
+#### 4.6.3 load-balance 策略组
+
+SOCKS5 专属策略组使用 `load-balance` 类型，将流量均匀分配到多个住宅节点：
+
+```yaml
+- name: 🛒 SOCKS5 负载
+  type: load-balance
+  strategy: round-robin        # 轮询分配（可选 consistent-hashing 基于源IP哈希）
+  proxies:
+    - 🇺🇸 美国★
+    - 🇯🇵 日本★
+    - 🇩🇪 德国★
+  url: https://www.gstatic.com/generate_204
+  interval: 300
+```
+
+关键点：
+- `strategy: round-robin` — 轮询，每次请求换一个节点，适合电商浏览防风控
+- `strategy: consistent-hashing` — 同一源 IP 始终走同一节点，适合需要 IP 粘性的场景
+- 节点池建议选用住宅 IP 或同一地区节点，避免频繁切换地区触发风控
+
+**v7 实际使用的策略**：`consistent-hashing`（一致性哈希），同一目标域名始终走同一出口节点，避免频繁切换 IP 触发风控。
+
+**三种 load-balance 策略对比**：
+
+| 策略 | 行为 | 适用场景 | 不适用场景 |
+|------|------|---------|-----------|
+| `consistent-hashing` | 同一目标域名 → 同一出口节点 | 需会话保持的爬虫（登录态、购物车） | 需要每次换 IP 的无状态抓取 |
+| `round-robin` | 轮询，每次请求换节点 | 无状态批量抓取、价格监控 | 需登录的网站（会话断开） |
+| `sticky-sessions` | 同一会话保持同一 IP | 长连接场景 | 短连接批量请求 |
+
+**为什么 32.x 不用 load-balance**：日常使用（浏览/开发/社交）需保持同一 IP，频繁切换会触发风控（Google 验证码、登录态丢失）。32.x 已有 `fallback` 故障转移足够。详见 `docs/DESIGN.md` §8.4。
+
+#### 4.6.4 SOCKS5 策略组命名规范
+
+| 类型 | 规范 | 示例 |
+|------|------|------|
+| SOCKS5 策略组 | `emoji + SOCKS5 + 用途` | `🛒 SOCKS5 负载` |
+| SOCKS5 listener 名 | `小写-短横线` | `socks5-in` |
+| SOCKS5 专用规则集 | `服务名_domain`（复用现有命名） | `amazon_domain`, `ebay_domain` |
+
+SOCKS5 相关的规则集（amazon/ebay/shopify/bing）仅在 SOCKS5 策略组的路由规则中引用，不进入主路由 `rules` 列表。
+
 ## 5. 常见问题排查
 
 ### 5.1 规则集 URL 404
@@ -251,6 +337,18 @@ proxy: CrossWall   # 替代原来的 proxy: DIRECT
 解决：v4 起默认出口以 ★稳定版（A→C→B）为首选；v5 在 `🚀 默认出口 32.x` 中同时列出省流版五地，便于在面板切到 C→B→A 省梯队费用。
 
 ## 6. 版本变更日志
+
+### v7（2026-05-02）
+
+| 变更项 | 说明 |
+|--------|------|
+| SOCKS5 入站监听 | 新增 `listeners` 段，SOCKS5 独立端口 7891，流量直接绑定专属策略组 |
+| load-balance 策略组 | 新增 `🌍 SOCKS5-国外`，`strategy: consistent-hashing` 一致性哈希分发，同一目标域名始终走同一出口节点 |
+| SOCKS5 专用规则集 | 新增 `amazon_domain`（MetaCubeX geosite）、`ebay_domain`（blackmatrix7）、`shopify_domain`（blackmatrix7）、`bing_domain`（MetaCubeX geosite） |
+| 参考资源 | §2.1 新增 listeners（SOCKS5）和 load-balance 文档链接 |
+| 编码规范 | §4.2 新增 SOCKS5 策略组/listener 命名规范；§4.6 新增 SOCKS5 配置规范（listeners + sub-rules + load-balance） |
+| 设计决策 | 32.x 不加 load-balance（日常使用需保持同一 IP）；SOCKS5 国内流量走代理非 DIRECT（爬虫防暴露真实 IP） |
+| 配置主文件 | `configs/v7.yaml` |
 
 ### v6（2026-04-12）
 
