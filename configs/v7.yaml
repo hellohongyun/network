@@ -6,10 +6,10 @@
 # ║  192.168.32.x  ap-rule             → 规则分流（精细分流核心）        ║
 # ║  192.168.33.x  ap-Global           → 全局代理                        ║
 # ║  192.168.34.x  ap-34x              → 默认住宅IP；白名单 SUB-RULE 直连 ║
-# ║  SOCKS5 :7891                       → 精细化分流（爬虫防封控）       ║
+# ║  HTTP :7891                          → 精细化分流（爬虫防封控）       ║
 # ╠══════════════════════════════════════════════════════════════════════╣
-# ║  v7 新增：SOCKS5 入站（listeners）+ 分层代理池 + 精细化分流         ║
-# ║  SOCKS5 分层代理池架构（参考 2025 反检测最佳实践）：                ║
+# ║  v7 新增：HTTP 入站（listeners）+ 分层代理池 + 精细化分流           ║
+# ║  HTTP 分层代理池架构（参考 2025 反检测最佳实践）：                  ║
 # ║  · 高级层：AI 平台 → 稳定节点（★ 版）                              ║
 # ║  · 中级层：搜索/电商 → 优质节点                                     ║
 # ║  · 基础层：社交/视频 → 普通节点                                     ║
@@ -30,7 +30,7 @@
 # ║  🇸🇬 新加坡★  = A→C→B 故障转移（稳定优先，默认出口/AI平台专用）   ║
 # ╠══════════════════════════════════════════════════════════════════════╣
 # ║  面板显示顺序（从上到下）：                                          ║
-# ║  出口组 → SOCKS5策略组 → 应用策略组 → 地区组 → 机场子组            ║
+# ║  出口组 → HTTP策略组 → 应用策略组 → 地区组 → 机场子组            ║
 # ╠══════════════════════════════════════════════════════════════════════╣
 # ║  必填项搜索 ★ 快速定位                                               ║
 # ╚══════════════════════════════════════════════════════════════════════╝
@@ -94,12 +94,12 @@ tun:
   auto-detect-interface: true
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 四-B、SOCKS5 入站（v7 新增，爬虫防封控专用）
+# 四-B、HTTP 入站（v7 新增，爬虫防封控专用）
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # ┌─────────────────────────────────────────────────────────────┐
-# │ SOCKS5 入站绑定独立 sub-rules（socks5-rules），              │
+# │ HTTP 入站绑定独立 sub-rules（http-rules），                  │
 # │ 实现与 TUN 透明代理完全隔离的精细化分流。                    │
-# │ 所有 SOCKS5 用户流量按目标平台分层管理，防 IP 封控。        │
+# │ 所有 HTTP 用户流量按目标平台分层管理，防 IP 封控。          │
 # │                                                             │
 # │ 安全建议：                                                  │
 # │ · 密码使用强密码，定期更换                                  │
@@ -107,12 +107,11 @@ tun:
 # │ · 生产环境建议启用 TLS（取消注释 certificate/private-key）  │
 # └─────────────────────────────────────────────────────────────┘
 listeners:
-  - name: socks5-in
-    type: socks
+  - name: http-in
+    type: http
     port: 7891
     listen: 0.0.0.0
-    udp: true
-    rule: socks5-rules  # 绑定到专用 sub-rules
+    rule: http-rules  # 绑定到专用 sub-rules
     users:
       - username: crawler1
         password: ★填写crawler1密码★
@@ -751,17 +750,17 @@ proxy-groups:
       - "🇺🇸 美国★"
 
   # ══════════════════════════════════════════════════════════════
-  # 【第2-B区】SOCKS5 精细化策略组（与 32.x 一一对应）
+  # 【第2-B区】HTTP 精细化策略组（与 32.x 一一对应）
   #
   #  第1选项：对应 32.x 策略组（自动跟随浏览器节点，共享 IP 信誉）
   #  第2+选项：★ 稳定节点 / 省流节点（手动切换）
-  #  调试逻辑：浏览器(32.x)能开但 SOCKS5 不行 → TLS指纹问题
+  #  调试逻辑：浏览器(32.x)能开但 HTTP 不行 → TLS指纹问题
   #            浏览器也不能开 → IP 被封，换节点
   # ══════════════════════════════════════════════════════════════
 
   # ── AI 平台 ─────────────────────────────────────────────────
 
-  - name: "🤖 !Claude SOCKS5"
+  - name: "🤖 !Claude HTTP"
     type: select
     proxies:
       - "🤖 Claude 32.x"
@@ -777,7 +776,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🤖 !ChatGPT SOCKS5"
+  - name: "🤖 !ChatGPT HTTP"
     type: select
     proxies:
       - "🤖 ChatGPT 32.x"
@@ -793,7 +792,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🔮 Gemini SOCKS5"
+  - name: "🔮 Gemini HTTP"
     type: select
     proxies:
       - "🔮 Gemini 32.x"
@@ -809,7 +808,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🐋 DeepSeek SOCKS5"
+  - name: "🐋 DeepSeek HTTP"
     type: select
     proxies:
       - "🐋 DeepSeek 32.x"
@@ -827,7 +826,7 @@ proxy-groups:
 
   # ── 视频平台 ─────────────────────────────────────────────────
 
-  - name: "📹 YouTube SOCKS5"
+  - name: "📹 YouTube HTTP"
     type: select
     proxies:
       - "📹 YouTube 32.x"
@@ -843,7 +842,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🎥 Netflix SOCKS5"
+  - name: "🎥 Netflix HTTP"
     type: select
     proxies:
       - "🎥 Netflix 32.x"
@@ -859,7 +858,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🎵 TikTok SOCKS5"
+  - name: "🎵 TikTok HTTP"
     type: select
     proxies:
       - "🎵 TikTok 32.x"
@@ -875,7 +874,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🎧 Spotify SOCKS5"
+  - name: "🎧 Spotify HTTP"
     type: select
     proxies:
       - "🎧 Spotify 32.x"
@@ -891,7 +890,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🏰 Disney+ SOCKS5"
+  - name: "🏰 Disney+ HTTP"
     type: select
     proxies:
       - "🏰 Disney+ 32.x"
@@ -909,7 +908,7 @@ proxy-groups:
 
   # ── 社交媒体 ─────────────────────────────────────────────────
 
-  - name: "📲 Telegram SOCKS5"
+  - name: "📲 Telegram HTTP"
     type: select
     proxies:
       - "📲 Telegram 32.x"
@@ -924,7 +923,7 @@ proxy-groups:
       - "🇺🇸 美国"
       - "🇭🇰 香港"
 
-  - name: "🐦 !Twitter SOCKS5"
+  - name: "🐦 !Twitter HTTP"
     type: select
     proxies:
       - "🐦 X 32.x"
@@ -940,7 +939,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "📸 !Instagram SOCKS5"
+  - name: "📸 !Instagram HTTP"
     type: select
     proxies:
       - "📸 Instagram 32.x"
@@ -956,7 +955,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "👤 !Facebook SOCKS5"
+  - name: "👤 !Facebook HTTP"
     type: select
     proxies:
       - "👤 Facebook 32.x"
@@ -972,7 +971,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🎮 Discord SOCKS5"
+  - name: "🎮 Discord HTTP"
     type: select
     proxies:
       - "🎮 Discord 32.x"
@@ -990,7 +989,7 @@ proxy-groups:
 
   # ── 开发/生产力 ───────────────────────────────────────────────
 
-  - name: "🍀 Google SOCKS5"
+  - name: "🍀 Google HTTP"
     type: select
     proxies:
       - "🍀 Google 32.x"
@@ -1006,7 +1005,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "👨‍💻 GitHub SOCKS5"
+  - name: "👨‍💻 GitHub HTTP"
     type: select
     proxies:
       - "👨‍💻 GitHub 32.x"
@@ -1022,7 +1021,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "☁️ Cloudflare SOCKS5"
+  - name: "☁️ Cloudflare HTTP"
     type: select
     proxies:
       - "☁️ Cloudflare 32.x"
@@ -1038,7 +1037,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🖌️ Figma SOCKS5"
+  - name: "🖌️ Figma HTTP"
     type: select
     proxies:
       - "🖌️ Figma 32.x"
@@ -1054,7 +1053,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "📝 Notion SOCKS5"
+  - name: "📝 Notion HTTP"
     type: select
     proxies:
       - "📝 Notion 32.x"
@@ -1072,7 +1071,7 @@ proxy-groups:
 
   # ── 系统/办公 ─────────────────────────────────────────────────
 
-  - name: "🪟 Microsoft SOCKS5"
+  - name: "🪟 Microsoft HTTP"
     type: select
     proxies:
       - "🪟 Microsoft 32.x"
@@ -1088,7 +1087,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "🍎 Apple SOCKS5"
+  - name: "🍎 Apple HTTP"
     type: select
     proxies:
       - "🍎 Apple 32.x"
@@ -1106,7 +1105,7 @@ proxy-groups:
 
   # ── 金融/支付 ─────────────────────────────────────────────────
 
-  - name: "🪙 加密货币 SOCKS5"
+  - name: "🪙 加密货币 HTTP"
     type: select
     proxies:
       - "🪙 加密货币 32.x"
@@ -1122,7 +1121,7 @@ proxy-groups:
       - "🇬🇧 英国"
       - "🇩🇪 德国"
 
-  - name: "💰 PayPal SOCKS5"
+  - name: "💰 PayPal HTTP"
     type: select
     proxies:
       - "💰 PayPal 32.x"
@@ -1140,7 +1139,7 @@ proxy-groups:
 
   # ── 游戏 ─────────────────────────────────────────────────────
 
-  - name: "🎮 Steam SOCKS5"
+  - name: "🎮 Steam HTTP"
     type: select
     proxies:
       - "🎮 Steam 32.x"
@@ -1156,7 +1155,7 @@ proxy-groups:
       - "🇭🇰 香港"
 
   # ── 国内网站（访问国内需低延迟）──
-  - name: "🌏 SOCKS5-国内"
+  - name: "🌏 HTTP-国内"
     type: select
     proxies:
       - "🇭🇰 香港★"
@@ -1169,7 +1168,7 @@ proxy-groups:
       - "🇹🇼 台湾"
 
   # ── 国外兜底：跟随默认出口，未命中平台统一管理 ──
-  - name: "🌍 SOCKS5-国外"
+  - name: "🌍 HTTP-国外"
     type: select
     proxies:
       - "🚀 默认出口 32.x"
@@ -1353,61 +1352,61 @@ sub-rules:
     - RULE-SET,direct_34,DIRECT
     - MATCH,🏠 住宅IP 34.x
 
-  # SOCKS5 精细化规则链（与 32.x 平台一一对应）
-  socks5-rules:
+  # HTTP 精细化规则链（与 32.x 平台一一对应）
+  http-rules:
     # 私有地址直连
     - RULE-SET,private_domain,DIRECT
     - RULE-SET,private_ip,DIRECT,no-resolve
 
     # ── AI 平台 ──
-    - RULE-SET,claude_domain,🤖 !Claude SOCKS5
-    - RULE-SET,openai_domain,🤖 !ChatGPT SOCKS5
-    - RULE-SET,gemini_domain,🔮 Gemini SOCKS5
-    - RULE-SET,deepseek_domain,🐋 DeepSeek SOCKS5
-    - RULE-SET,ai_catchall,🤖 !Claude SOCKS5
+    - RULE-SET,claude_domain,🤖 !Claude HTTP
+    - RULE-SET,openai_domain,🤖 !ChatGPT HTTP
+    - RULE-SET,gemini_domain,🔮 Gemini HTTP
+    - RULE-SET,deepseek_domain,🐋 DeepSeek HTTP
+    - RULE-SET,ai_catchall,🤖 !Claude HTTP
 
     # ── 视频平台 ──
-    - RULE-SET,youtube_domain,📹 YouTube SOCKS5
-    - RULE-SET,netflix_domain,🎥 Netflix SOCKS5
-    - RULE-SET,netflix_ip,🎥 Netflix SOCKS5,no-resolve
-    - RULE-SET,tiktok_domain,🎵 TikTok SOCKS5
-    - RULE-SET,spotify_domain,🎧 Spotify SOCKS5
-    - RULE-SET,disney_domain,🏰 Disney+ SOCKS5
+    - RULE-SET,youtube_domain,📹 YouTube HTTP
+    - RULE-SET,netflix_domain,🎥 Netflix HTTP
+    - RULE-SET,netflix_ip,🎥 Netflix HTTP,no-resolve
+    - RULE-SET,tiktok_domain,🎵 TikTok HTTP
+    - RULE-SET,spotify_domain,🎧 Spotify HTTP
+    - RULE-SET,disney_domain,🏰 Disney+ HTTP
 
     # ── 社交媒体 ──
-    - RULE-SET,telegram_domain,📲 Telegram SOCKS5
-    - RULE-SET,telegram_ip,📲 Telegram SOCKS5,no-resolve
-    - RULE-SET,twitter_domain,🐦 !Twitter SOCKS5
-    - RULE-SET,twitter_ip,🐦 !Twitter SOCKS5,no-resolve
-    - RULE-SET,instagram_domain,📸 !Instagram SOCKS5
-    - RULE-SET,facebook_domain,👤 !Facebook SOCKS5
-    - RULE-SET,facebook_ip,👤 !Facebook SOCKS5,no-resolve
-    - RULE-SET,discord_domain,🎮 Discord SOCKS5
+    - RULE-SET,telegram_domain,📲 Telegram HTTP
+    - RULE-SET,telegram_ip,📲 Telegram HTTP,no-resolve
+    - RULE-SET,twitter_domain,🐦 !Twitter HTTP
+    - RULE-SET,twitter_ip,🐦 !Twitter HTTP,no-resolve
+    - RULE-SET,instagram_domain,📸 !Instagram HTTP
+    - RULE-SET,facebook_domain,👤 !Facebook HTTP
+    - RULE-SET,facebook_ip,👤 !Facebook HTTP,no-resolve
+    - RULE-SET,discord_domain,🎮 Discord HTTP
 
     # ── 开发/生产力 ──
-    - RULE-SET,google_domain,🍀 Google SOCKS5
-    - RULE-SET,google_ip,🍀 Google SOCKS5,no-resolve
-    - RULE-SET,github_domain,👨‍💻 GitHub SOCKS5
-    - RULE-SET,cloudflare_domain,☁️ Cloudflare SOCKS5
-    - RULE-SET,cloudflare_ip,☁️ Cloudflare SOCKS5,no-resolve
-    - RULE-SET,figma_domain,🖌️ Figma SOCKS5
-    - RULE-SET,notion_domain,📝 Notion SOCKS5
+    - RULE-SET,google_domain,🍀 Google HTTP
+    - RULE-SET,google_ip,🍀 Google HTTP,no-resolve
+    - RULE-SET,github_domain,👨‍💻 GitHub HTTP
+    - RULE-SET,cloudflare_domain,☁️ Cloudflare HTTP
+    - RULE-SET,cloudflare_ip,☁️ Cloudflare HTTP,no-resolve
+    - RULE-SET,figma_domain,🖌️ Figma HTTP
+    - RULE-SET,notion_domain,📝 Notion HTTP
 
     # ── 系统/办公 ──
-    - RULE-SET,microsoft_domain,🪟 Microsoft SOCKS5
-    - RULE-SET,apple_domain,🍎 Apple SOCKS5
-    - RULE-SET,apple_ip,🍎 Apple SOCKS5,no-resolve
+    - RULE-SET,microsoft_domain,🪟 Microsoft HTTP
+    - RULE-SET,apple_domain,🍎 Apple HTTP
+    - RULE-SET,apple_ip,🍎 Apple HTTP,no-resolve
 
     # ── 金融/游戏 ──
-    - RULE-SET,crypto_domain,🪙 加密货币 SOCKS5
-    - RULE-SET,paypal_domain,💰 PayPal SOCKS5
-    - RULE-SET,steam_domain,🎮 Steam SOCKS5
+    - RULE-SET,crypto_domain,🪙 加密货币 HTTP
+    - RULE-SET,paypal_domain,💰 PayPal HTTP
+    - RULE-SET,steam_domain,🎮 Steam HTTP
 
     # ── 国内 / 国外 / 兜底 ──
-    - RULE-SET,cn_domain,🌏 SOCKS5-国内
-    - RULE-SET,cn_ip,🌏 SOCKS5-国内,no-resolve
-    - RULE-SET,geolocation_not_cn,🌍 SOCKS5-国外
-    - MATCH,🌍 SOCKS5-国外
+    - RULE-SET,cn_domain,🌏 HTTP-国内
+    - RULE-SET,cn_ip,🌏 HTTP-国内,no-resolve
+    - RULE-SET,geolocation_not_cn,🌍 HTTP-国外
+    - MATCH,🌍 HTTP-国外
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 十、路由规则
@@ -1650,7 +1649,7 @@ rule-providers:
     <<: *ip
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
 
-  # ── SOCKS5 专用规则集（v7 新增，爬虫防封控）──────────────────
+  # ── HTTP 专用规则集（v7 新增，爬虫防封控）──────────────────
   amazon_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/amazon.mrs"

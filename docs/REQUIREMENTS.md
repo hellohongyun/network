@@ -81,33 +81,33 @@
 | DNS-02 | 国内域名走国内 DOH（阿里/腾讯），海外域名走 8.8.8.8/1.1.1.1 | P0 |
 | DNS-03 | 代理节点域名解析不经过代理（防鸡蛋问题） | P0 |
 
-### 3.6 SOCKS5 精细化流量分流（v7）
+### 3.6 HTTP 精细化流量分流（v7）
 
 | 需求编号 | 描述 | 优先级 |
 |---------|------|--------|
-| SOCKS-01 | SOCKS5 入站端口 **7891**，支持多用户认证（crawler1 / crawler2 / crawler3） | P0 |
-| SOCKS-02 | 所有 SOCKS5 用户流量走分流规则，国内/国外都走代理，不经直连（隐藏爬虫真实 IP） | P0 |
-| SOCKS-03 | **32.x 镜像策略组**：26 个 SOCKS5 策略组与 32.x 一一对应（24 应用 + 2 兜底） | P0 |
-| SOCKS-04 | **IP 信誉共享**：每个 SOCKS5 组第 1 选项引用对应 32.x 组，浏览器和爬虫共享出口 IP 和信誉 | P0 |
-| SOCKS-05 | 精细化分流规则链：SOCKS5 流量按域名/IP 规则匹配后进入对应平台策略组 | P0 |
-| SOCKS-06 | 爬虫需使用 curl_cffi + `impersonate="chrome124"` 模拟 Chrome TLS 指纹，避免 Cloudflare JA3/JA4 检测 | P0 |
-| SOCKS-07 | IP 信誉预热：新节点/切换节点后，先用浏览器完成人机验证，爬虫再走同一节点 | P1 |
-| SOCKS-08 | 国内流量独立策略组（`🌏 SOCKS5-国内`），可自选节点 | P1 |
-| SOCKS-09 | 国外流量兜底策略组（`🌍 SOCKS5-国外`），引用默认出口 32.x | P1 |
-| SOCKS-10 | 不影响现有 31.x/32.x/33.x/34.x 网段功能，SOCKS5 入站与网段分流互不干扰 | P0 |
+| HTTP-01 | HTTP 入站端口 **7891**，支持多用户认证（crawler1 / crawler2 / crawler3） | P0 |
+| HTTP-02 | 所有 HTTP 用户流量走分流规则，国内/国外都走代理，不经直连（隐藏爬虫真实 IP） | P0 |
+| HTTP-03 | **32.x 镜像策略组**：26 个 HTTP 策略组与 32.x 一一对应（24 应用 + 2 兜底） | P0 |
+| HTTP-04 | **IP 信誉共享**：每个 HTTP 组第 1 选项引用对应 32.x 组，浏览器和爬虫共享出口 IP 和信誉 | P0 |
+| HTTP-05 | 精细化分流规则链：HTTP 流量按域名/IP 规则匹配后进入对应平台策略组 | P0 |
+| HTTP-06 | 爬虫需使用 curl_cffi + `impersonate="chrome124"` 模拟 Chrome TLS 指纹，避免 Cloudflare JA3/JA4 检测 | P0 |
+| HTTP-07 | IP 信誉预热：新节点/切换节点后，先用浏览器完成人机验证，爬虫再走同一节点 | P1 |
+| HTTP-08 | 国内流量独立策略组（`🌏 HTTP-国内`），可自选节点 | P1 |
+| HTTP-09 | 国外流量兜底策略组（`🌍 HTTP-国外`），引用默认出口 32.x | P1 |
+| HTTP-10 | 不影响现有 31.x/32.x/33.x/34.x 网段功能，HTTP 入站与网段分流互不干扰 | P0 |
 
 ### 3.7 设计决策记录
 
 | 决策编号 | 决策 | 理由 | 影响范围 |
 |---------|------|------|---------|
-| DEC-01 | SOCKS5 使用 `listeners` + `rule: socks5-rules` 实现隔离，而非复用主路由 `rules` | `listeners.rule` 绑定独立 sub-rules 子链，SOCKS5 流量不经过主路由，与 TUN 透明代理零耦合 | v7 架构 |
-| DEC-02 | SOCKS5 国内流量走代理（`🌏 SOCKS5-国内`），不走 DIRECT | 爬虫场景下国内网站也需经代理出口，避免暴露真实 IP | SOCKS-02 |
-| DEC-03 | SOCKS5 策略组与 32.x **逐平台一一对应**，而非分类合并（如 AI/搜索/电商/社交/视频） | 按平台粒度控制节点，支持独立调试；分类合并导致被封时无法定位具体平台 | SOCKS-03 |
-| DEC-04 | 每个 SOCKS5 组第 1 选项引用对应 32.x 组 | 浏览器验证人机后 IP 获得信誉，爬虫走同一出口 IP 继承信誉；用户只需切换 32.x 节点，SOCKS5 自动跟随 | SOCKS-04 |
-| DEC-05 | SOCKS5 使用 `select` 类型，不使用 `load-balance` | 32.x 引用机制已实现节点跟随，无需负载均衡；手动切换节点更可控 | SOCKS5 策略组 |
-| DEC-06 | 不在 SOCKS5 组中使用住宅 IP | 住宅 IP 价格高且不稳定，普通机场节点配合 IP 信誉预热即可满足爬虫需求 | SOCKS5 策略组 |
-| DEC-07 | 删除 Bing/Amazon/eBay/Shopify 四个 SOCKS5 组 | 这些平台没有对应 32.x 策略组，无法实现 IP 信誉共享 | SOCKS-03 |
-| DEC-08 | 爬虫必须使用 curl_cffi + `impersonate="chrome124"` | Cloudflare 通过 TLS 指纹（JA3/JA4）检测非浏览器客户端；标准 curl/requests 的 TLS 指纹会被识别为机器人返回 403，与 IP 无关 | SOCKS-06 |
+| DEC-01 | HTTP 使用 `listeners` + `rule: http-rules` 实现隔离，而非复用主路由 `rules` | `listeners.rule` 绑定独立 sub-rules 子链，HTTP 流量不经过主路由，与 TUN 透明代理零耦合 | v7 架构 |
+| DEC-02 | HTTP 国内流量走代理（`🌏 HTTP-国内`），不走 DIRECT | 爬虫场景下国内网站也需经代理出口，避免暴露真实 IP | HTTP-02 |
+| DEC-03 | HTTP 策略组与 32.x **逐平台一一对应**，而非分类合并（如 AI/搜索/电商/社交/视频） | 按平台粒度控制节点，支持独立调试；分类合并导致被封时无法定位具体平台 | HTTP-03 |
+| DEC-04 | 每个 HTTP 组第 1 选项引用对应 32.x 组 | 浏览器验证人机后 IP 获得信誉，爬虫走同一出口 IP 继承信誉；用户只需切换 32.x 节点，HTTP 自动跟随 | HTTP-04 |
+| DEC-05 | HTTP 使用 `select` 类型，不使用 `load-balance` | 32.x 引用机制已实现节点跟随，无需负载均衡；手动切换节点更可控 | HTTP 策略组 |
+| DEC-06 | 不在 HTTP 组中使用住宅 IP | 住宅 IP 价格高且不稳定，普通机场节点配合 IP 信誉预热即可满足爬虫需求 | HTTP 策略组 |
+| DEC-07 | 删除 Bing/Amazon/eBay/Shopify 四个 HTTP 组 | 这些平台没有对应 32.x 策略组，无法实现 IP 信誉共享 | HTTP-03 |
+| DEC-08 | 爬虫必须使用 curl_cffi + `impersonate="chrome124"` | Cloudflare 通过 TLS 指纹（JA3/JA4）检测非浏览器客户端；标准 curl/requests 的 TLS 指纹会被识别为机器人返回 403，与 IP 无关 | HTTP-06 |
 
 ## 4. 非功能需求
 
@@ -136,13 +136,13 @@
 6. 单机场掉线后 300 秒内自动切换到下一个机场
 7. 面板中应用策略组排列在地区组之前
 8. 所有规则集 URL 返回 HTTP 200
-9. SOCKS5 入站端口 7891 可连接，crawler1/crawler2/crawler3 认证通过，非法用户拒绝
-10. SOCKS5 流量全部走代理，无直连泄漏（国内流量走 `🌏 SOCKS5-国内`，非 DIRECT）
-11. 26 个 SOCKS5 策略组与 32.x 一一对应，每组第 1 选项引用对应 32.x 组
-12. 浏览器（32.x）和爬虫（SOCKS5）走同一节点时共享出口 IP，curl_cffi 返回 200
+9. HTTP 入站端口 7891 可连接，crawler1/crawler2/crawler3 认证通过，非法用户拒绝
+10. HTTP 流量全部走代理，无直连泄漏（国内流量走 `🌏 HTTP-国内`，非 DIRECT）
+11. 26 个 HTTP 策略组与 32.x 一一对应，每组第 1 选项引用对应 32.x 组
+12. 浏览器（32.x）和爬虫（HTTP）走同一节点时共享出口 IP，curl_cffi 返回 200
 13. 国内流量可手动切换节点
-14. 现有 31.x/32.x/33.x/34.x 网段行为不受 SOCKS5 入站影响（v7 对 v6 纯新增，零修改）
-15. SOCKS5 与 TUN 透明代理完全隔离：SOCKS5 流量不匹配任何 SRC-IP-CIDR 网段规则
+14. 现有 31.x/32.x/33.x/34.x 网段行为不受 HTTP 入站影响（v7 对 v6 纯新增，零修改）
+15. HTTP 与 TUN 透明代理完全隔离：HTTP 流量不匹配任何 SRC-IP-CIDR 网段规则
 
 ## 7. 迭代历史
 
@@ -154,4 +154,4 @@
 | v4 | 2026-04-10 | 修复 HK 不通、修复 DeepSeek 404、补全 IP 规则、AI 兜底、统一 .mrs |
 | v5 | 2026-04-11 | 5 机场阶梯式分层（主力/保底/优质三梯队）、层内多机场冗余、稳定版 A→C→B |
 | v6 | 2026-04-12 | 34.x 白名单：`direct_34_relays`（端口/IP）+ `direct_34`（域名）+ `SUB-RULE`；`configs/rulesets` 见 `DIRECT-32`、`DIRECT-34-relays`、`DIRECT-34`；主配置 `configs/v6.yaml` |
-| v7 | 2026-05-02 | SOCKS5 精细化流量分流：端口 7891 多用户认证（crawler1/2/3）；26 个平台镜像策略组与 32.x 一一对应；第 1 选项引用 32.x 组实现 IP 信誉共享；TLS 指纹检测与 curl_cffi 方案；IP 信誉预热流程；不影响现有网段功能 |
+| v7 | 2026-05-02 | HTTP 精细化流量分流：端口 7891 多用户认证（crawler1/2/3）；26 个平台镜像策略组与 32.x 一一对应；第 1 选项引用 32.x 组实现 IP 信誉共享；TLS 指纹检测与 curl_cffi 方案；IP 信誉预热流程；不影响现有网段功能 |
