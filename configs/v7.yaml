@@ -751,71 +751,129 @@ proxy-groups:
       - "🇺🇸 美国★"
 
   # ══════════════════════════════════════════════════════════════
-  # 【第2-B区】SOCKS5 专用策略组（v7 新增，分层代理池架构）
+  # 【第2-B区】SOCKS5 精细化策略组（每平台独立控制）
   #
-  #  每组三档可选：住宅 IP（反检测最强）> ★稳定 > 省流
-  #  · 住宅 IP：🏠 美国住宅-34，用于严格平台（AI / 社交 / 金融）
-  #  · ★ 稳定：优质机场节点，稳定性优先
-  #  · 省 流：普通机场节点，流量成本优先
+  #  严格平台（AI/社交/电商）默认 🏠 住宅 IP，绑定账号不换 IP
+  #  宽松平台（搜索/视频）默认 ★ 稳定节点，省住宅流量配额
+  #  每组三档可选：🏠 住宅 > ★ 稳定 > 省流
   # ══════════════════════════════════════════════════════════════
 
-  # ── AI 平台（Claude / ChatGPT / Perplexity，Cloudflare 严格封锁）──
-  - name: "🤖 SOCKS5-AI"
+  # ── AI 平台 ─────────────────────────────────────────────────
+
+  - name: "🤖 Claude SOCKS5"
     type: select
-    proxies:
+    proxies: &s5_strict
       - "🏠 美国住宅-34"
+      - "🇺🇸 美国★"
       - "🇯🇵 日本★"
       - "🇸🇬 新加坡★"
-      - "🇺🇸 美国★"
       - "🇭🇰 香港★"
       - "🇹🇼 台湾★"
-      - "🇯🇵 日本"
-      - "🇸🇬 新加坡"
-      - "🇺🇸 美国"
-      - "🇭🇰 香港"
-
-  # ── 搜索引擎（Google / Bing，封锁宽松，★ 优先保稳定）──
-  - name: "🔍 SOCKS5-搜索"
-    type: select
-    proxies:
-      - "🇺🇸 美国★"
-      - "🇯🇵 日本★"
-      - "🇸🇬 新加坡★"
-      - "🇭🇰 香港★"
-      - "🇺🇸 美国"
-      - "🇯🇵 日本"
-      - "🇸🇬 新加坡"
-      - "🇭🇰 香港"
-
-  # ── 电商平台（Amazon / eBay / Etsy，部分严格）──
-  - name: "🛒 SOCKS5-电商"
-    type: select
-    proxies:
-      - "🏠 美国住宅-34"
-      - "🇺🇸 美国★"
-      - "🇸🇬 新加坡★"
-      - "🇯🇵 日本★"
-      - "🇭🇰 香港★"
-      - "🇺🇸 美国"
-      - "🇸🇬 新加坡"
-      - "🇯🇵 日本"
-      - "🇭🇰 香港"
-
-  # ── 社交媒体（Twitter / Instagram / Facebook，部分严格）──
-  - name: "📱 SOCKS5-社交"
-    type: select
-    proxies:
-      - "🏠 美国住宅-34"
-      - "🇺🇸 美国★"
-      - "🇯🇵 日本★"
-      - "🇸🇬 新加坡★"
-      - "🇭🇰 香港★"
       - "🇺🇸 美国"
       - "🇯🇵 日本"
       - "🇸🇬 新加坡"
       - "🇭🇰 香港"
       - "🇬🇧 英国"
       - "🇩🇪 德国"
+
+  - name: "🤖 ChatGPT SOCKS5"
+    type: select
+    proxies: *s5_strict
+
+  - name: "🔮 Gemini SOCKS5"
+    type: select
+    proxies: &s5_stable
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🏠 美国住宅-34"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🐋 DeepSeek SOCKS5"
+    type: select
+    proxies: *s5_stable
+
+  - name: "🤖 AI SOCKS5"
+    type: select
+    proxies: *s5_strict
+
+  # ── 搜索引擎 ─────────────────────────────────────────────────
+
+  - name: "🍀 Google SOCKS5"
+    type: select
+    proxies: *s5_stable
+
+  - name: "🔍 Bing SOCKS5"
+    type: select
+    proxies: *s5_stable
+
+  # ── 电商平台 ─────────────────────────────────────────────────
+
+  - name: "🛒 Amazon SOCKS5"
+    type: select
+    proxies: *s5_strict
+
+  - name: "🛒 eBay SOCKS5"
+    type: select
+    proxies: *s5_stable
+
+  - name: "🛒 Shopify SOCKS5"
+    type: select
+    proxies: *s5_stable
+
+  # ── 社交媒体 ─────────────────────────────────────────────────
+
+  - name: "🐦 Twitter SOCKS5"
+    type: select
+    proxies: *s5_strict
+
+  - name: "📸 Instagram SOCKS5"
+    type: select
+    proxies: *s5_strict
+
+  - name: "👤 Facebook SOCKS5"
+    type: select
+    proxies: *s5_strict
+
+  - name: "📲 Telegram SOCKS5"
+    type: select
+    proxies:
+      - "🇩🇪 德国"
+      - "🇬🇧 英国"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇺🇸 美国★"
+      - "🏠 美国住宅-34"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+      - "🇭🇰 香港"
+
+  # ── 视频平台 ─────────────────────────────────────────────────
+
+  - name: "📹 YouTube SOCKS5"
+    type: select
+    proxies: *s5_stable
+
+  - name: "🎵 TikTok SOCKS5"
+    type: select
+    proxies:
+      - "🇸🇬 新加坡★"
+      - "🇯🇵 日本★"
+      - "🇺🇸 美国★"
+      - "🇭🇰 香港★"
+      - "🏠 美国住宅-34"
+      - "🇸🇬 新加坡"
+      - "🇯🇵 日本"
+      - "🇺🇸 美国"
+      - "🇭🇰 香港"
 
   # ── 国内网站（访问国内需低延迟）──
   - name: "🌏 SOCKS5-国内"
@@ -830,23 +888,10 @@ proxy-groups:
       - "🇹🇼 台湾★"
       - "🇹🇼 台湾"
 
-  # ── 国外兜底：手动选定固定节点，账号登录 IP 稳定不突变 ──
+  # ── 国外兜底：固定节点，账号登录 IP 稳定不突变 ──
   - name: "🌍 SOCKS5-国外"
     type: select
-    proxies:
-      - "🏠 美国住宅-34"
-      - "🇺🇸 美国★"
-      - "🇯🇵 日本★"
-      - "🇸🇬 新加坡★"
-      - "🇭🇰 香港★"
-      - "🇹🇼 台湾★"
-      - "🇺🇸 美国"
-      - "🇯🇵 日本"
-      - "🇸🇬 新加坡"
-      - "🇭🇰 香港"
-      - "🇹🇼 台湾"
-      - "🇬🇧 英国"
-      - "🇩🇪 德国"
+    proxies: *s5_strict
 
   # ══════════════════════════════════════════════════════════════
   # 【第3区】地区组（省流版 + 稳定版）
@@ -1016,51 +1061,46 @@ sub-rules:
     - RULE-SET,direct_34,DIRECT
     - MATCH,🏠 住宅IP 34.x
 
-  # SOCKS5 用户专用规则链（v7 新增，精细化分流）
-  # 设计理念：参考 32.x 规则分流，按目标平台分层管理，防 IP 封控
+  # SOCKS5 精细化规则链（每平台独立策略组）
   socks5-rules:
     # 私有地址直连
     - RULE-SET,private_domain,DIRECT
     - RULE-SET,private_ip,DIRECT,no-resolve
 
-    # ── AI 平台（高级层，稳定优先）──
-    - RULE-SET,claude_domain,🤖 SOCKS5-AI
-    - RULE-SET,openai_domain,🤖 SOCKS5-AI
-    - RULE-SET,gemini_domain,🤖 SOCKS5-AI
-    - RULE-SET,deepseek_domain,🤖 SOCKS5-AI
-    - RULE-SET,ai_catchall,🤖 SOCKS5-AI
+    # ── AI 平台 ──
+    - RULE-SET,claude_domain,🤖 Claude SOCKS5
+    - RULE-SET,openai_domain,🤖 ChatGPT SOCKS5
+    - RULE-SET,gemini_domain,🔮 Gemini SOCKS5
+    - RULE-SET,deepseek_domain,🐋 DeepSeek SOCKS5
+    - RULE-SET,ai_catchall,🤖 AI SOCKS5
 
-    # ── 搜索引擎（中级层）──
-    - RULE-SET,google_domain,🔍 SOCKS5-搜索
-    - RULE-SET,google_ip,🔍 SOCKS5-搜索,no-resolve
-    - RULE-SET,bing_domain,🔍 SOCKS5-搜索
+    # ── 搜索引擎 ──
+    - RULE-SET,google_domain,🍀 Google SOCKS5
+    - RULE-SET,google_ip,🍀 Google SOCKS5,no-resolve
+    - RULE-SET,bing_domain,🔍 Bing SOCKS5
 
-    # ── 电商平台（中级层）──
-    - RULE-SET,amazon_domain,🛒 SOCKS5-电商
-    - RULE-SET,ebay_domain,🛒 SOCKS5-电商
-    - RULE-SET,shopify_domain,🛒 SOCKS5-电商
+    # ── 电商平台 ──
+    - RULE-SET,amazon_domain,🛒 Amazon SOCKS5
+    - RULE-SET,ebay_domain,🛒 eBay SOCKS5
+    - RULE-SET,shopify_domain,🛒 Shopify SOCKS5
 
-    # ── 社交媒体（基础层，大流量）──
-    - RULE-SET,twitter_domain,📱 SOCKS5-社交
-    - RULE-SET,twitter_ip,📱 SOCKS5-社交,no-resolve
-    - RULE-SET,instagram_domain,📱 SOCKS5-社交
-    - RULE-SET,facebook_domain,📱 SOCKS5-社交
-    - RULE-SET,facebook_ip,📱 SOCKS5-社交,no-resolve
-    - RULE-SET,telegram_domain,📱 SOCKS5-社交
-    - RULE-SET,telegram_ip,📱 SOCKS5-社交,no-resolve
+    # ── 社交媒体 ──
+    - RULE-SET,twitter_domain,🐦 Twitter SOCKS5
+    - RULE-SET,twitter_ip,🐦 Twitter SOCKS5,no-resolve
+    - RULE-SET,instagram_domain,📸 Instagram SOCKS5
+    - RULE-SET,facebook_domain,👤 Facebook SOCKS5
+    - RULE-SET,facebook_ip,👤 Facebook SOCKS5,no-resolve
+    - RULE-SET,telegram_domain,📲 Telegram SOCKS5
+    - RULE-SET,telegram_ip,📲 Telegram SOCKS5,no-resolve
 
-    # ── 视频平台（基础层）──
-    - RULE-SET,youtube_domain,📱 SOCKS5-社交
-    - RULE-SET,tiktok_domain,📱 SOCKS5-社交
+    # ── 视频平台 ──
+    - RULE-SET,youtube_domain,📹 YouTube SOCKS5
+    - RULE-SET,tiktok_domain,🎵 TikTok SOCKS5
 
-    # ── 国内网站 → SOCKS5-国内代理 ──
+    # ── 国内 / 国外 / 兜底 ──
     - RULE-SET,cn_domain,🌏 SOCKS5-国内
     - RULE-SET,cn_ip,🌏 SOCKS5-国内,no-resolve
-
-    # ── 国外网站 → SOCKS5-国外代理（负载均衡）──
     - RULE-SET,geolocation_not_cn,🌍 SOCKS5-国外
-
-    # 最终兜底：所有未匹配流量走国外代理
     - MATCH,🌍 SOCKS5-国外
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
