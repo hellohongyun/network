@@ -830,14 +830,16 @@ proxy-groups:
       - "🇹🇼 台湾★"
       - "🇹🇼 台湾"
 
-  # ── 国外兜底：负载均衡，consistent-hashing 防频繁换 IP ──
+  # ── 国外兜底：手动选定固定节点，账号登录 IP 稳定不突变 ──
   - name: "🌍 SOCKS5-国外"
-    type: load-balance
-    strategy: consistent-hashing
+    type: select
     proxies:
+      - "🏠 美国住宅-34"
       - "🇺🇸 美国★"
       - "🇯🇵 日本★"
       - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
       - "🇺🇸 美国"
       - "🇯🇵 日本"
       - "🇸🇬 新加坡"
@@ -845,9 +847,6 @@ proxy-groups:
       - "🇹🇼 台湾"
       - "🇬🇧 英国"
       - "🇩🇪 德国"
-    url: https://www.gstatic.com/generate_204
-    interval: 300
-    timeout: 5000
 
   # ══════════════════════════════════════════════════════════════
   # 【第3区】地区组（省流版 + 稳定版）
