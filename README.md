@@ -106,10 +106,10 @@
 ---
 
 ## 快速开始
-**当前推荐使用 `configs/v7.yaml`**（在 v6 五机场阶梯 + 34.x 白名单基础上，新增 SOCKS5 精细化流量分流）。历史版本见同目录 `v6.yaml` / `v5.yaml` / `v4.yaml` / `v3.yaml`。
+**当前推荐使用 `configs/v7.yaml`**（在 v6 五机场阶梯 + 34.x 白名单基础上，新增 HTTP 精细化流量分流）。历史版本见同目录 `v6.yaml` / `v5.yaml` / `v4.yaml` / `v3.yaml`。
 
 ### 第一步：填写订阅链接
-打开 `configs/v7.yaml`，找到第六节「机场订阅」，填入你的 5 个机场订阅 URL；第七节填入住宅 SOCKS 等静态节点（若使用 ap-34x）；第四-B 节填入 SOCKS5 用户密码（若使用 SOCKS5 爬虫入站）：
+打开 `configs/v7.yaml`，找到第六节「机场订阅」，填入你的 5 个机场订阅 URL；第七节填入住宅 SOCKS 等静态节点（若使用 ap-34x）；第四-B 节填入 HTTP 用户密码（若使用 HTTP 爬虫入站）：
 
 ```yaml
 # 主力梯队
@@ -197,9 +197,9 @@ YunTu:
 ## 技术指标
 | 指标 | 数值 |
 | --- | --- |
-| 策略组总数 | 65 个（v7，含 6 个 SOCKS5 专用） |
+| 策略组总数 | 65 个（v7，含 6 个 HTTP 专用） |
 | 规则集总数 | 约 46 个（v7，含 amazon/ebay/shopify/bing；含本仓 `DIRECT-32`、`DIRECT-34-relays`、`DIRECT-34`；其余以 .mrs / 上游 classical 为主） |
-| 路由规则数 | 以 `v7.yaml` 内 `rules` 列表为准（v7 含 `SUB-RULE` 入口 + SOCKS5 `socks5-rules` 子链） |
+| 路由规则数 | 以 `v7.yaml` 内 `rules` 列表为准（v7 含 `SUB-RULE` 入口 + HTTP `http-rules` 子链） |
 | 支持网段数 | 4 个（可扩展至 222 个） |
 | 支持机场数 | 5 个（3 梯队：主力 2 + 保底 2 + 优质 1） |
 | 支持地区数 | 9 个（5 主要 + 4 次要） |
@@ -245,8 +245,8 @@ YunTu:
 ---
 
 ## 注意事项
-1. **安全**：`configs/v7.yaml`（及任意本地副本）在填写后会包含机场订阅 URL、住宅 IP 凭据和 SOCKS5 用户密码，请勿把含真实密钥的文件推送到公开远程仓库。建议定期到机场后台重置订阅 Token。
+1. **安全**：`configs/v7.yaml`（及任意本地副本）在填写后会包含机场订阅 URL、住宅 IP 凭据和 HTTP 用户密码，请勿把含真实密钥的文件推送到公开远程仓库。建议定期到机场后台重置订阅 Token。
 2. **TUN 模式**：当前 `auto-route/auto-redirect/auto-detect-interface` 均为 `true`。如果与 OpenWrt 插件冲突，将这三项改为 `false`（插件会自行管理路由表）。
 3. **机场订阅被墙**：如果某机场订阅域名被墙，将其 `proxy: DIRECT` 改为 `proxy: CrossWall`，借道已加载的主力机场去拉取。
 4. **规则集更新**：上游仓库可能随时调整文件路径。如果启动报错，检查对应 URL 是否仍返回 HTTP 200。
-5. **v6/v7 与内核版本**：34.x 白名单依赖 `SUB-RULE` / `sub-rules`，SOCKS5 入站依赖 `listeners`，请使用较新的 Mihomo（Clash Meta）稳定版；过旧内核可能需改为多条 `AND` 规则（见 `docs/DESIGN.md`）。
+5. **v6/v7 与内核版本**：34.x 白名单依赖 `SUB-RULE` / `sub-rules`，HTTP 入站依赖 `listeners`，请使用较新的 Mihomo（Clash Meta）稳定版；过旧内核可能需改为多条 `AND` 规则（见 `docs/DESIGN.md`）。

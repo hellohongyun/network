@@ -31,8 +31,8 @@
 | 规则集 | https://wiki.metacubex.one/config/rule-providers/ | behavior/format/interval 等 |
 | 代理集 | https://wiki.metacubex.one/config/proxy-providers/ | health-check/exclude-filter/override 等 |
 | 入站配置 | https://wiki.metacubex.one/config/inbound/ | TUN/sniffer 等 |
-| 入站监听 | https://wiki.metacubex.one/config/inbound/listeners/socks | SOCKS5 listeners 配置（v7） |
-| 负载均衡 | https://wiki.metacubex.one/config/proxy-groups/load-balance | load-balance 策略组（备用参考，v7 SOCKS5 未使用） |
+| 入站监听 | https://wiki.metacubex.one/config/inbound/listeners/http | HTTP listeners 配置（v7） |
+| 负载均衡 | https://wiki.metacubex.one/config/proxy-groups/load-balance | load-balance 策略组（备用参考，v7 HTTP 未使用） |
 | 完整示例 | https://github.com/MetaCubeX/mihomo/blob/Meta/docs/config.yaml | 官方示例配置 |
 
 ### 2.2 规则集仓库
@@ -86,8 +86,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | private_domain | private | ✅ 200 |
 | geolocation_not_cn | geolocation-!cn | ✅ 200 |
 | cn_domain | cn | ✅ 200 |
-| amazon_domain | amazon | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
-| bing_domain | bing | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
+| amazon_domain | amazon | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
+| bing_domain | bing | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
 
 ### 3.2 MetaCubeX geoip（behavior: ipcidr, format: mrs）
 
@@ -114,8 +114,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | claude_domain | `.../Clash/Claude/Claude.yaml` | yaml | ✅ 200 |
 | gemini_domain | `.../Clash/Gemini/Gemini.yaml` | yaml | ✅ 200 |
 | crypto_domain | `.../Clash/Cryptocurrency/Cryptocurrency.list` | text | ✅ 200 |
-| ebay_domain | `.../Clash/eBay/eBay.yaml` | yaml | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
-| shopify_domain | `.../Clash/Shopify/Shopify.yaml` | yaml | ✅ 200（v7 SOCKS5，rule-providers 中定义但未使用） |
+| ebay_domain | `.../Clash/eBay/eBay.yaml` | yaml | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
+| shopify_domain | `.../Clash/Shopify/Shopify.yaml` | yaml | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
 
 ### 3.4 已弃用/404 的 URL（避免使用）
 
@@ -176,8 +176,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | 锚点名 | `小写_缩写` | `sub_ut_c`, `region_eco` |
 | 本仓 rulesets 文件名 | `策略简写-网段.yaml`；住宅白名单可拆 `-relays` | `DIRECT-32.yaml`, `DIRECT-34-relays.yaml`, `DIRECT-34.yaml` |
 | 本仓 rulesets provider 键 | `小写_网段数字`；relays 加后缀 | `direct_32`, `direct_34_relays`, `direct_34` |
-| SOCKS5 策略组（v7） | `emoji + 平台名 + SOCKS5`（严格封控平台加 `!` 前缀） | `🤖 !Claude SOCKS5`, `📹 YouTube SOCKS5` |
-| SOCKS5 listener 名（v7） | `小写-短横线` | `socks5-in` |
+| HTTP 策略组（v7） | `emoji + 平台名 + HTTP`（严格封控平台加 `!` 前缀） | `🤖 !Claude HTTP`, `📹 YouTube HTTP` |
+| HTTP listener 名（v7） | `小写-短横线` | `http-in` |
 
 ### 4.3 锚点使用规范
 
@@ -225,39 +225,38 @@ claude_domain:
 (?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美|英|法|德|澳|韓)).)*$
 ```
 
-### 4.6 SOCKS5 配置规范（v7）
+### 4.6 HTTP 配置规范（v7）
 
-v7 引入 SOCKS5 入站监听，用于爬虫/批量抓取场景。26 个平台策略组与 32.x 一一对应，每组第 1 选项引用对应 32.x 组，实现节点跟随和 IP 信誉共享。
+v7 引入 HTTP 入站监听，用于爬虫/批量抓取场景。26 个平台策略组与 32.x 一一对应，每组第 1 选项引用对应 32.x 组，实现节点跟随和 IP 信誉共享。
 
 #### 4.6.1 listeners 配置
 
-在 `四-B` 段配置 SOCKS5 入站：
+在 `四-B` 段配置 HTTP 入站：
 
 ```yaml
 listeners:
-  - name: socks5-in
-    type: socks
-    port: 7891          # SOCKS5 独立监听端口
+  - name: http-in
+    type: http
+    port: 7891          # HTTP 独立监听端口
     listen: 0.0.0.0
-    udp: true
-    rule: socks5-rules  # 绑定到专用 sub-rules
+    rule: http-rules  # 绑定到专用 sub-rules
     users:
       - username: crawler1
         password: ★填写密码★
 ```
 
 关键点：
-- `type: socks` 表示 SOCKS5 协议入站
-- `rule` 字段绑定独立 sub-rules 子链，SOCKS5 流量不经过主路由 `rules`
+- `type: http` 表示 HTTP 协议入站
+- `rule` 字段绑定独立 sub-rules 子链，HTTP 流量不经过主路由 `rules`
 - `users` 配置用户认证，未认证连接被拒绝
 - 不同端口可绑定不同 rule 链，实现多通道隔离
 
-#### 4.6.2 SOCKS5 策略组（select，引用 32.x 组）
+#### 4.6.2 HTTP 策略组（select，引用 32.x 组）
 
-每个 SOCKS5 策略组使用 `select` 类型，第一选项引用对应 32.x 策略组：
+每个 HTTP 策略组使用 `select` 类型，第一选项引用对应 32.x 策略组：
 
 ```yaml
-- name: "🤖 !Claude SOCKS5"
+- name: "🤖 !Claude HTTP"
   type: select
   proxies:
     - "🤖 Claude 32.x"   # 第1选项：引用 32.x 组，自动跟随浏览器节点
@@ -274,22 +273,22 @@ listeners:
     - "🇩🇪 德国"
 ```
 
-**IP 信誉共享原理**：浏览器在 32.x 中选择了日本★节点 → 出口 IP 为 1.2.3.4 → 浏览器完成人机验证 → IP 获得信誉 → SOCKS5 组第 1 选项引用同一 32.x 组 → 爬虫也走日本★ → 出口 IP 同为 1.2.3.4 → 继承 IP 信誉。
+**IP 信誉共享原理**：浏览器在 32.x 中选择了日本★节点 → 出口 IP 为 1.2.3.4 → 浏览器完成人机验证 → IP 获得信誉 → HTTP 组第 1 选项引用同一 32.x 组 → 爬虫也走日本★ → 出口 IP 同为 1.2.3.4 → 继承 IP 信誉。
 
 **兜底组**：
 ```yaml
-- name: "🌏 SOCKS5-国内"
+- name: "🌏 HTTP-国内"
   type: select
   proxies: [香港★, 香港, 日本★, 日本, 新加坡★, 新加坡, 台湾★, 台湾]
 
-- name: "🌍 SOCKS5-国外"
+- name: "🌍 HTTP-国外"
   type: select
   proxies: [🚀 默认出口 32.x, 美国★, 日本★, 新加坡★, 香港★, 台湾★, 美国, 日本, 新加坡, 香港, 英国, 德国]
 ```
 
 #### 4.6.3 sub-rules 子规则配合
 
-SOCKS5 入站绑定独立 `socks5-rules` 子链，与住宅网段的 `residential34` 子链并列：
+HTTP 入站绑定独立 `http-rules` 子链，与住宅网段的 `residential34` 子链并列：
 
 ```yaml
 sub-rules:
@@ -297,23 +296,23 @@ sub-rules:
     - RULE-SET,direct_34_relays,DIRECT
     - RULE-SET,direct_34,DIRECT
     - MATCH,🏠 住宅IP 34.x
-  socks5-rules:                               # v7 新增子链
+  http-rules:                               # v7 新增子链
     - RULE-SET,private_domain,DIRECT
-    - RULE-SET,claude_domain,🤖 !Claude SOCKS5
+    - RULE-SET,claude_domain,🤖 !Claude HTTP
     # ... 26 个平台规则（见 DESIGN.md §8.4）
-    - MATCH,🌍 SOCKS5-国外
+    - MATCH,🌍 HTTP-国外
 ```
 
-#### 4.6.4 SOCKS5 策略组命名规范
+#### 4.6.4 HTTP 策略组命名规范
 
 | 类型 | 规范 | 示例 |
 |------|------|------|
-| SOCKS5 应用组 | `emoji + 平台名 + SOCKS5` | `🤖 !Claude SOCKS5` |
-| SOCKS5 兜底组 | `emoji + SOCKS5 + 用途` | `🌍 SOCKS5-国外` |
-| SOCKS5 listener 名 | `小写-短横线` | `socks5-in` |
-| 严格封控平台 | `!` 前缀 + 平台名 + SOCKS5 | `🤖 !Claude SOCKS5` |
+| HTTP 应用组 | `emoji + 平台名 + HTTP` | `🤖 !Claude HTTP` |
+| HTTP 兜底组 | `emoji + HTTP + 用途` | `🌍 HTTP-国外` |
+| HTTP listener 名 | `小写-短横线` | `http-in` |
+| 严格封控平台 | `!` 前缀 + 平台名 + HTTP | `🤖 !Claude HTTP` |
 
-SOCKS5 策略组使用的规则集（claude_domain、openai_domain 等）复用 32.x 已有规则集，不单独维护。
+HTTP 策略组使用的规则集（claude_domain、openai_domain 等）复用 32.x 已有规则集，不单独维护。
 
 ## 5. 常见问题排查
 
@@ -343,15 +342,15 @@ proxy: CrossWall   # 替代原来的 proxy: DIRECT
 
 验证：在面板中检查 `[C] 日本` 等子组是否有节点。如果为空，fallback 会自动跳过该子组。
 
-### 5.4 SOCKS5 调试
+### 5.4 HTTP 调试
 
 **连通性验证**：
 
 ```bash
 # 基础连通测试
-curl -x socks5://crawler1:password@192.168.31.1:7891 http://httpbin.org/ip
+curl -x http://crawler1:password@192.168.31.1:7891 http://httpbin.org/ip
 
-# 如果返回 IP，说明 SOCKS5 通道正常
+# 如果返回 IP，说明 HTTP 通道正常
 # 如果连接失败，检查 listeners 配置和用户认证
 ```
 
@@ -366,7 +365,7 @@ from curl_cffi import requests
 response = requests.get(
     "https://claude.ai",
     impersonate="chrome124",
-    proxies={"https": "socks5://crawler1:password@192.168.31.1:7891"}
+    proxies={"https": "http://crawler1:password@192.168.31.1:7891"}
 )
 print(response.status_code)  # 200（而非标准 curl 的 403）
 ```
@@ -376,7 +375,7 @@ print(response.status_code)  # 200（而非标准 curl 的 403）
 ```
 爬虫 403
 ├─ 用浏览器(32.x)访问同一网站
-│  ├─ 浏览器正常 → SOCKS5 403 → TLS 指纹问题
+│  ├─ 浏览器正常 → HTTP 403 → TLS 指纹问题
 │  │  → 确认使用 curl_cffi + impersonate="chrome124"
 │  └─ 浏览器也 403 → IP 被封
 │     → 在面板切换 32.x 节点
@@ -397,15 +396,15 @@ print(response.status_code)  # 200（而非标准 curl 的 403）
 
 | 变更项 | 说明 |
 |--------|------|
-| SOCKS5 入站监听 | 新增 `listeners` 段，SOCKS5 独立端口 7891，多用户认证（crawler1/2/3），绑定 `socks5-rules` 子链 |
-| 26 个平台镜像策略组 | SOCKS5 策略组与 32.x 一一对应（24 应用 + 2 兜底），每组第 1 选项引用对应 32.x 组，共享节点和 IP 信誉 |
-| socks5-rules 规则链 | 独立子链，覆盖全部 24 个平台 + 国内/国外兜底，复用现有 rule-providers |
+| HTTP 入站监听 | 新增 `listeners` 段，HTTP 独立端口 7891，多用户认证（crawler1/2/3），绑定 `http-rules` 子链 |
+| 26 个平台镜像策略组 | HTTP 策略组与 32.x 一一对应（24 应用 + 2 兜底），每组第 1 选项引用对应 32.x 组，共享节点和 IP 信誉 |
+| http-rules 规则链 | 独立子链，覆盖全部 24 个平台 + 国内/国外兜底，复用现有 rule-providers |
 | TLS 指纹检测 | Cloudflare 通过 JA3/JA4 检测非浏览器 TLS 指纹；爬虫需使用 curl_cffi + `impersonate="chrome124"` |
 | IP 信誉预热 | 新节点/切换节点后，浏览器先访问目标站完成人机验证，爬虫再走同一节点继承信誉 |
-| 参考资源 | §2.1 新增 listeners（SOCKS5）文档链接 |
-| 编码规范 | §4.2 新增 SOCKS5 策略组命名规范（`emoji + 平台名 + SOCKS5`，`!` 前缀表示严格封控）；§4.6 重写 SOCKS5 配置规范 |
-| 设计决策 | SOCKS5 使用 `select` 类型（非 load-balance），通过引用 32.x 组实现节点跟随；国内流量走代理非 DIRECT（隐藏爬虫真实 IP） |
-| 调试流程 | 新增 §5.4 SOCKS5 调试（连通性验证、403 决策树、curl_cffi 示例） |
+| 参考资源 | §2.1 新增 listeners（HTTP）文档链接 |
+| 编码规范 | §4.2 新增 HTTP 策略组命名规范（`emoji + 平台名 + HTTP`，`!` 前缀表示严格封控）；§4.6 重写 HTTP 配置规范 |
+| 设计决策 | HTTP 使用 `select` 类型（非 load-balance），通过引用 32.x 组实现节点跟随；国内流量走代理非 DIRECT（隐藏爬虫真实 IP） |
+| 调试流程 | 新增 §5.4 HTTP 调试（连通性验证、403 决策树、curl_cffi 示例） |
 | 配置主文件 | `configs/v7.yaml` |
 
 ### v6（2026-04-12）
