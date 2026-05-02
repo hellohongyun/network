@@ -751,19 +751,20 @@ proxy-groups:
       - "🇺🇸 美国★"
 
   # ══════════════════════════════════════════════════════════════
-  # 【第2-B区】SOCKS5 精细化策略组（每平台独立控制）
+  # 【第2-B区】SOCKS5 精细化策略组（与 32.x 一一对应）
   #
-  #  严格平台（AI/社交/电商）默认 🏠 住宅 IP，绑定账号不换 IP
-  #  宽松平台（搜索/视频）默认 ★ 稳定节点，省住宅流量配额
-  #  每组三档可选：🏠 住宅 > ★ 稳定 > 省流
+  #  第1选项：对应 32.x 策略组（自动跟随浏览器节点，共享 IP 信誉）
+  #  第2+选项：★ 稳定节点 / 省流节点（手动切换）
+  #  调试逻辑：浏览器(32.x)能开但 SOCKS5 不行 → TLS指纹问题
+  #            浏览器也不能开 → IP 被封，换节点
   # ══════════════════════════════════════════════════════════════
 
   # ── AI 平台 ─────────────────────────────────────────────────
 
   - name: "🤖 !Claude SOCKS5"
     type: select
-    proxies: &s5_strict
-      - "🏠 美国住宅-34"
+    proxies:
+      - "🤖 Claude 32.x"
       - "🇺🇸 美国★"
       - "🇯🇵 日本★"
       - "🇸🇬 新加坡★"
@@ -778,17 +779,29 @@ proxy-groups:
 
   - name: "🤖 !ChatGPT SOCKS5"
     type: select
-    proxies: *s5_strict
-
-  - name: "🔮 Gemini SOCKS5"
-    type: select
-    proxies: &s5_stable
+    proxies:
+      - "🤖 ChatGPT 32.x"
       - "🇺🇸 美国★"
       - "🇯🇵 日本★"
       - "🇸🇬 新加坡★"
       - "🇭🇰 香港★"
       - "🇹🇼 台湾★"
-      - "🏠 美国住宅-34"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🔮 Gemini SOCKS5"
+    type: select
+    proxies:
+      - "🔮 Gemini 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
       - "🇺🇸 美国"
       - "🇯🇵 日本"
       - "🇸🇬 新加坡"
@@ -798,77 +811,348 @@ proxy-groups:
 
   - name: "🐋 DeepSeek SOCKS5"
     type: select
-    proxies: *s5_stable
-
-  # ── 搜索引擎 ─────────────────────────────────────────────────
-
-  - name: "🍀 Google SOCKS5"
-    type: select
-    proxies: *s5_stable
-
-  - name: "🔍 Bing SOCKS5"
-    type: select
-    proxies: *s5_stable
-
-  # ── 电商平台 ─────────────────────────────────────────────────
-
-  - name: "🛒 !Amazon SOCKS5"
-    type: select
-    proxies: *s5_strict
-
-  - name: "🛒 eBay SOCKS5"
-    type: select
-    proxies: *s5_stable
-
-  - name: "🛒 Shopify SOCKS5"
-    type: select
-    proxies: *s5_stable
-
-  # ── 社交媒体 ─────────────────────────────────────────────────
-
-  - name: "🐦 !Twitter SOCKS5"
-    type: select
-    proxies: *s5_strict
-
-  - name: "📸 !Instagram SOCKS5"
-    type: select
-    proxies: *s5_strict
-
-  - name: "👤 !Facebook SOCKS5"
-    type: select
-    proxies: *s5_strict
-
-  - name: "📲 Telegram SOCKS5"
-    type: select
     proxies:
-      - "🇩🇪 德国"
-      - "🇬🇧 英国"
+      - "🐋 DeepSeek 32.x"
+      - "🇺🇸 美国★"
       - "🇯🇵 日本★"
       - "🇸🇬 新加坡★"
-      - "🇺🇸 美国★"
-      - "🏠 美国住宅-34"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
       - "🇯🇵 日本"
       - "🇸🇬 新加坡"
-      - "🇺🇸 美国"
       - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
 
   # ── 视频平台 ─────────────────────────────────────────────────
 
   - name: "📹 YouTube SOCKS5"
     type: select
-    proxies: *s5_stable
+    proxies:
+      - "📹 YouTube 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🎥 Netflix SOCKS5"
+    type: select
+    proxies:
+      - "🎥 Netflix 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
 
   - name: "🎵 TikTok SOCKS5"
     type: select
     proxies:
+      - "🎵 TikTok 32.x"
       - "🇸🇬 新加坡★"
       - "🇯🇵 日本★"
       - "🇺🇸 美国★"
       - "🇭🇰 香港★"
-      - "🏠 美国住宅-34"
+      - "🇹🇼 台湾★"
       - "🇸🇬 新加坡"
       - "🇯🇵 日本"
       - "🇺🇸 美国"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🎧 Spotify SOCKS5"
+    type: select
+    proxies:
+      - "🎧 Spotify 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🏰 Disney+ SOCKS5"
+    type: select
+    proxies:
+      - "🏰 Disney+ 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  # ── 社交媒体 ─────────────────────────────────────────────────
+
+  - name: "📲 Telegram SOCKS5"
+    type: select
+    proxies:
+      - "📲 Telegram 32.x"
+      - "🇩🇪 德国"
+      - "🇬🇧 英国"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇺🇸 美国★"
+      - "🇭🇰 香港★"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇺🇸 美国"
+      - "🇭🇰 香港"
+
+  - name: "🐦 !Twitter SOCKS5"
+    type: select
+    proxies:
+      - "🐦 X 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "📸 !Instagram SOCKS5"
+    type: select
+    proxies:
+      - "📸 Instagram 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "👤 !Facebook SOCKS5"
+    type: select
+    proxies:
+      - "👤 Facebook 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🎮 Discord SOCKS5"
+    type: select
+    proxies:
+      - "🎮 Discord 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  # ── 开发/生产力 ───────────────────────────────────────────────
+
+  - name: "🍀 Google SOCKS5"
+    type: select
+    proxies:
+      - "🍀 Google 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "👨‍💻 GitHub SOCKS5"
+    type: select
+    proxies:
+      - "👨‍💻 GitHub 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "☁️ Cloudflare SOCKS5"
+    type: select
+    proxies:
+      - "☁️ Cloudflare 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🖌️ Figma SOCKS5"
+    type: select
+    proxies:
+      - "🖌️ Figma 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "📝 Notion SOCKS5"
+    type: select
+    proxies:
+      - "📝 Notion 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  # ── 系统/办公 ─────────────────────────────────────────────────
+
+  - name: "🪟 Microsoft SOCKS5"
+    type: select
+    proxies:
+      - "🪟 Microsoft 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "🍎 Apple SOCKS5"
+    type: select
+    proxies:
+      - "🍎 Apple 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  # ── 金融/支付 ─────────────────────────────────────────────────
+
+  - name: "🪙 加密货币 SOCKS5"
+    type: select
+    proxies:
+      - "🪙 加密货币 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  - name: "💰 PayPal SOCKS5"
+    type: select
+    proxies:
+      - "💰 PayPal 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
+
+  # ── 游戏 ─────────────────────────────────────────────────────
+
+  - name: "🎮 Steam SOCKS5"
+    type: select
+    proxies:
+      - "🎮 Steam 32.x"
+      - DIRECT
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
       - "🇭🇰 香港"
 
   # ── 国内网站（访问国内需低延迟）──
@@ -884,10 +1168,22 @@ proxy-groups:
       - "🇹🇼 台湾★"
       - "🇹🇼 台湾"
 
-  # ── 国外兜底：固定节点，账号登录 IP 稳定不突变 ──
+  # ── 国外兜底：跟随默认出口，未命中平台统一管理 ──
   - name: "🌍 SOCKS5-国外"
     type: select
-    proxies: *s5_strict
+    proxies:
+      - "🚀 默认出口 32.x"
+      - "🇺🇸 美国★"
+      - "🇯🇵 日本★"
+      - "🇸🇬 新加坡★"
+      - "🇭🇰 香港★"
+      - "🇹🇼 台湾★"
+      - "🇺🇸 美国"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡"
+      - "🇭🇰 香港"
+      - "🇬🇧 英国"
+      - "🇩🇪 德国"
 
   # ══════════════════════════════════════════════════════════════
   # 【第3区】地区组（省流版 + 稳定版）
@@ -1057,7 +1353,7 @@ sub-rules:
     - RULE-SET,direct_34,DIRECT
     - MATCH,🏠 住宅IP 34.x
 
-  # SOCKS5 精细化规则链（每平台独立策略组）
+  # SOCKS5 精细化规则链（与 32.x 平台一一对应）
   socks5-rules:
     # 私有地址直连
     - RULE-SET,private_domain,DIRECT
@@ -1070,28 +1366,42 @@ sub-rules:
     - RULE-SET,deepseek_domain,🐋 DeepSeek SOCKS5
     - RULE-SET,ai_catchall,🤖 !Claude SOCKS5
 
-    # ── 搜索引擎 ──
-    - RULE-SET,google_domain,🍀 Google SOCKS5
-    - RULE-SET,google_ip,🍀 Google SOCKS5,no-resolve
-    - RULE-SET,bing_domain,🔍 Bing SOCKS5
-
-    # ── 电商平台 ──
-    - RULE-SET,amazon_domain,🛒 !Amazon SOCKS5
-    - RULE-SET,ebay_domain,🛒 eBay SOCKS5
-    - RULE-SET,shopify_domain,🛒 Shopify SOCKS5
+    # ── 视频平台 ──
+    - RULE-SET,youtube_domain,📹 YouTube SOCKS5
+    - RULE-SET,netflix_domain,🎥 Netflix SOCKS5
+    - RULE-SET,netflix_ip,🎥 Netflix SOCKS5,no-resolve
+    - RULE-SET,tiktok_domain,🎵 TikTok SOCKS5
+    - RULE-SET,spotify_domain,🎧 Spotify SOCKS5
+    - RULE-SET,disney_domain,🏰 Disney+ SOCKS5
 
     # ── 社交媒体 ──
+    - RULE-SET,telegram_domain,📲 Telegram SOCKS5
+    - RULE-SET,telegram_ip,📲 Telegram SOCKS5,no-resolve
     - RULE-SET,twitter_domain,🐦 !Twitter SOCKS5
     - RULE-SET,twitter_ip,🐦 !Twitter SOCKS5,no-resolve
     - RULE-SET,instagram_domain,📸 !Instagram SOCKS5
     - RULE-SET,facebook_domain,👤 !Facebook SOCKS5
     - RULE-SET,facebook_ip,👤 !Facebook SOCKS5,no-resolve
-    - RULE-SET,telegram_domain,📲 Telegram SOCKS5
-    - RULE-SET,telegram_ip,📲 Telegram SOCKS5,no-resolve
+    - RULE-SET,discord_domain,🎮 Discord SOCKS5
 
-    # ── 视频平台 ──
-    - RULE-SET,youtube_domain,📹 YouTube SOCKS5
-    - RULE-SET,tiktok_domain,🎵 TikTok SOCKS5
+    # ── 开发/生产力 ──
+    - RULE-SET,google_domain,🍀 Google SOCKS5
+    - RULE-SET,google_ip,🍀 Google SOCKS5,no-resolve
+    - RULE-SET,github_domain,👨‍💻 GitHub SOCKS5
+    - RULE-SET,cloudflare_domain,☁️ Cloudflare SOCKS5
+    - RULE-SET,cloudflare_ip,☁️ Cloudflare SOCKS5,no-resolve
+    - RULE-SET,figma_domain,🖌️ Figma SOCKS5
+    - RULE-SET,notion_domain,📝 Notion SOCKS5
+
+    # ── 系统/办公 ──
+    - RULE-SET,microsoft_domain,🪟 Microsoft SOCKS5
+    - RULE-SET,apple_domain,🍎 Apple SOCKS5
+    - RULE-SET,apple_ip,🍎 Apple SOCKS5,no-resolve
+
+    # ── 金融/游戏 ──
+    - RULE-SET,crypto_domain,🪙 加密货币 SOCKS5
+    - RULE-SET,paypal_domain,💰 PayPal SOCKS5
+    - RULE-SET,steam_domain,🎮 Steam SOCKS5
 
     # ── 国内 / 国外 / 兜底 ──
     - RULE-SET,cn_domain,🌏 SOCKS5-国内
