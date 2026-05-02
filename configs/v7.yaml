@@ -800,10 +800,6 @@ proxy-groups:
     type: select
     proxies: *s5_stable
 
-  - name: "🤖 !AI SOCKS5"
-    type: select
-    proxies: *s5_strict
-
   # ── 搜索引擎 ─────────────────────────────────────────────────
 
   - name: "🍀 Google SOCKS5"
@@ -1072,7 +1068,7 @@ sub-rules:
     - RULE-SET,openai_domain,🤖 !ChatGPT SOCKS5
     - RULE-SET,gemini_domain,🔮 Gemini SOCKS5
     - RULE-SET,deepseek_domain,🐋 DeepSeek SOCKS5
-    - RULE-SET,ai_catchall,🤖 !AI SOCKS5
+    - RULE-SET,ai_catchall,🤖 !Claude SOCKS5
 
     # ── 搜索引擎 ──
     - RULE-SET,google_domain,🍀 Google SOCKS5
