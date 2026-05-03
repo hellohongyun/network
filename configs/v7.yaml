@@ -1160,6 +1160,7 @@ proxy-groups:
   - name: "📺 Bilibili HTTP"
     type: select
     proxies:
+      - DIRECT
       - "🇭🇰 香港★"
       - "🇭🇰 香港"
       - "🇯🇵 日本★"
@@ -1172,6 +1173,7 @@ proxy-groups:
   - name: "📱 微博 HTTP"
     type: select
     proxies:
+      - DIRECT
       - "🇭🇰 香港★"
       - "🇭🇰 香港"
       - "🇯🇵 日本★"
@@ -1184,6 +1186,7 @@ proxy-groups:
   - name: "💡 知乎 HTTP"
     type: select
     proxies:
+      - DIRECT
       - "🇭🇰 香港★"
       - "🇭🇰 香港"
       - "🇯🇵 日本★"
@@ -1196,6 +1199,7 @@ proxy-groups:
   - name: "🔴 小红书 HTTP"
     type: select
     proxies:
+      - DIRECT
       - "🇭🇰 香港★"
       - "🇭🇰 香港"
       - "🇯🇵 日本★"
@@ -1208,6 +1212,7 @@ proxy-groups:
   - name: "🎬 豆瓣 HTTP"
     type: select
     proxies:
+      - DIRECT
       - "🇭🇰 香港★"
       - "🇭🇰 香港"
       - "🇯🇵 日本★"
@@ -1221,6 +1226,7 @@ proxy-groups:
   - name: "🌏 HTTP-国内"
     type: select
     proxies:
+      - DIRECT
       - "🇭🇰 香港★"
       - "🇭🇰 香港"
       - "🇯🇵 日本★"
