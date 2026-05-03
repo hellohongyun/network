@@ -750,9 +750,10 @@ proxy-groups:
       - "🇺🇸 美国★"
 
   # ══════════════════════════════════════════════════════════════
-  # 【第2-B区】HTTP 精细化策略组（与 32.x 一一对应）
+  # 【第2-B区】HTTP 精细化策略组（29 应用 + 2 兜底 = 31 组）
   #
-  #  第1选项：对应 32.x 策略组（自动跟随浏览器节点，共享 IP 信誉）
+  #  海外平台：第1选项引用对应 32.x 组（自动跟随浏览器节点，共享 IP 信誉）
+  #  国内平台：直接选择近距节点（港/台/日/新），无需 32.x 引用
   #  第2+选项：★ 稳定节点 / 省流节点（手动切换）
   #  调试逻辑：浏览器(32.x)能开但 HTTP 不行 → TLS指纹问题
   #            浏览器也不能开 → IP 被封，换节点
@@ -1154,6 +1155,68 @@ proxy-groups:
       - "🇸🇬 新加坡"
       - "🇭🇰 香港"
 
+  # ── 国内平台（爬虫精细化分流，近距节点优先）──
+
+  - name: "📺 Bilibili HTTP"
+    type: select
+    proxies:
+      - "🇭🇰 香港★"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本★"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡★"
+      - "🇸🇬 新加坡"
+      - "🇹🇼 台湾★"
+      - "🇹🇼 台湾"
+
+  - name: "📱 微博 HTTP"
+    type: select
+    proxies:
+      - "🇭🇰 香港★"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本★"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡★"
+      - "🇸🇬 新加坡"
+      - "🇹🇼 台湾★"
+      - "🇹🇼 台湾"
+
+  - name: "💡 知乎 HTTP"
+    type: select
+    proxies:
+      - "🇭🇰 香港★"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本★"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡★"
+      - "🇸🇬 新加坡"
+      - "🇹🇼 台湾★"
+      - "🇹🇼 台湾"
+
+  - name: "🔴 小红书 HTTP"
+    type: select
+    proxies:
+      - "🇭🇰 香港★"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本★"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡★"
+      - "🇸🇬 新加坡"
+      - "🇹🇼 台湾★"
+      - "🇹🇼 台湾"
+
+  - name: "🎬 豆瓣 HTTP"
+    type: select
+    proxies:
+      - "🇭🇰 香港★"
+      - "🇭🇰 香港"
+      - "🇯🇵 日本★"
+      - "🇯🇵 日本"
+      - "🇸🇬 新加坡★"
+      - "🇸🇬 新加坡"
+      - "🇹🇼 台湾★"
+      - "🇹🇼 台湾"
+
   # ── 国内网站（访问国内需低延迟）──
   - name: "🌏 HTTP-国内"
     type: select
@@ -1401,6 +1464,13 @@ sub-rules:
     - RULE-SET,crypto_domain,🪙 加密货币 HTTP
     - RULE-SET,paypal_domain,💰 PayPal HTTP
     - RULE-SET,steam_domain,🎮 Steam HTTP
+
+    # ── 国内平台（爬虫精细化分流）──
+    - RULE-SET,bilibili_domain,📺 Bilibili HTTP
+    - RULE-SET,weibo_domain,📱 微博 HTTP
+    - RULE-SET,zhihu_domain,💡 知乎 HTTP
+    - RULE-SET,xiaohongshu_domain,🔴 小红书 HTTP
+    - RULE-SET,douban_domain,🎬 豆瓣 HTTP
 
     # ── 国内 / 国外 / 兜底 ──
     - RULE-SET,cn_domain,🌏 HTTP-国内
@@ -1650,6 +1720,21 @@ rule-providers:
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
 
   # ── HTTP 专用规则集（v7 新增，爬虫防封控）──────────────────
+  bilibili_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/bilibili.mrs"
+  weibo_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/weibo.mrs"
+  zhihu_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/zhihu.mrs"
+  xiaohongshu_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/xiaohongshu.mrs"
+  douban_domain:
+    <<: *domain
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/douban.mrs"
   amazon_domain:
     <<: *domain
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/amazon.mrs"
