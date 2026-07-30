@@ -1,8 +1,8 @@
 # 技术规范文档
 
 > 项目：Mihomo 多网段精细分流配置  
-> 版本：v7
-> 最后更新：2026-05-02
+> 版本：v8
+> 最后更新：2026-07-30
 
 ---
 
@@ -35,7 +35,20 @@
 | 负载均衡 | https://wiki.metacubex.one/config/proxy-groups/load-balance | load-balance 策略组（备用参考，v7 HTTP 未使用） |
 | 完整示例 | https://github.com/MetaCubeX/mihomo/blob/Meta/docs/config.yaml | 官方示例配置 |
 
-### 2.2 规则集仓库
+### 2.2 客户端衍生配置
+
+`client/v8.yaml` 面向 Clash Verge Rev、Clash Party（原 Mihomo Party）、FlClash 及其他较新的 Mihomo 客户端。它直接处理桌面电脑或 Android 设备的本机流量，不包含源网段匹配，也不依赖任何 `192.168.x.x` 网段；iPhone/iPad 客户端不在直接兼容范围内。
+
+- 保留 24 个应用组、19 个地区组、15 个机场子组、默认出口和漏网之鱼，共 60 个策略组。
+- 保留 5 个 proxy-provider、日常分流所需的 40 个 rule-provider，以及地区 fallback 和机场子组的原健康检查参数。
+- 自定义直连目标由 `direct_client` 引用 `client/rulesets/DIRECT.yaml`，与 `configs/rulesets/` 下的路由器规则分开维护。
+- 删除全部家庭网段入口、住宅代理、住宅子规则、HTTP 7891 listener、HTTP 专用策略组及其专用规则集。
+- TUN 保留 `auto-route`、`auto-detect-interface` 和 DNS 劫持，删除 Linux/OpenWrt 导向的 `auto-redirect`。
+- 混合代理、控制器和 DNS 只监听本机；内置外部面板下载配置不进入客户端模板。
+- 需要较新的 Mihomo 内核支持 `.mrs`、provider 指纹覆盖、`expected-status` 和 `include-all-providers`；传统 Clash Premium 或非 Mihomo 客户端不在兼容范围内。
+- `configs/*.yaml` 与 `configs/rulesets/*` 是路由器部署使用的稳定公共路径，不得迁移；单设备配置只能在顶层 `client/` 内演进。
+
+### 2.3 规则集仓库
 
 | 仓库 | URL | 说明 |
 |------|-----|------|
@@ -44,7 +57,7 @@
 | ACL4SSR | https://github.com/ACL4SSR/ACL4SSR/tree/master/Clash | 经典 Clash 规则模板 |
 | wwqgtxx clash-rules | https://github.com/wwqgtxx/clash-rules | fakeip-filter 等特殊规则集 |
 
-### 2.3 参考配置
+### 2.4 参考配置
 
 | 名称 | URL | 说明 |
 |------|-----|------|
@@ -86,6 +99,7 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | private_domain | private | ✅ 200 |
 | geolocation_not_cn | geolocation-!cn | ✅ 200 |
 | cn_domain | cn | ✅ 200 |
+| weibo_domain | sina | ✅ 200（v8 改用；覆盖微博及新浪体系） |
 | amazon_domain | amazon | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
 | bing_domain | bing | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
 
@@ -124,6 +138,7 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | `blackmatrix7/.../DeepSeek/DeepSeek.yaml` | ❌ 404 | MetaCubeX `geosite/deepseek.mrs` |
 | `blackmatrix7/.../DeepSeek/DeepSeek.list` | ❌ 404 | 同上 |
 | `MetaCubeX/geo/geoip/apple.mrs` | ❌ 404 | 使用 `geo-lite/geoip/apple.mrs` |
+| `MetaCubeX/meta/geo/geosite/weibo.mrs` | ❌ 404 | 使用 `geosite/sina.mrs`，保持 domain + mrs |
 
 ### 3.5 其他
 
@@ -188,6 +203,7 @@ sub_ut_c: &sub_ut_c
   type: url-test
   use: [CrossWall, DuoBaoYiYuan]  # 主力梯队：多机场
   url: https://www.gstatic.com/generate_204
+  expected-status: 204
   interval: 300
 
 # 使用锚点（在 proxy-groups 中通过 <<: * 合并）
@@ -196,7 +212,21 @@ sub_ut_c: &sub_ut_c
   filter: "(?=.*(港|HK))" # 添加/覆盖特定字段
 ```
 
-### 4.4 rule-providers 锚点
+### 4.4 proxy-providers 客户端指纹
+
+最新版 Mihomo 已移除全局 `global-client-fingerprint`。v8 在每个订阅提供器中通过 `override` 下发 Chrome 指纹：
+
+```yaml
+CrossWall:
+  type: http
+  url: "..."
+  override:
+    client-fingerprint: chrome
+```
+
+新增订阅提供器时必须同步添加该 `override`。它只设置 Mihomo 代理节点的客户端指纹，不能代替爬虫自身的 curl_cffi 浏览器指纹模拟。
+
+### 4.5 rule-providers 锚点
 
 ```yaml
 # 三种类型的模板
@@ -211,7 +241,7 @@ claude_domain:
   format: yaml       # 覆盖为 yaml（blackmatrix7 的 .yaml 文件）
 ```
 
-### 4.5 正则表达式规范
+### 4.6 正则表达式规范
 
 节点过滤使用正则表达式，格式为正向+负向双重匹配：
 
@@ -225,9 +255,9 @@ claude_domain:
 (?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美|英|法|德|澳|韓)).)*$
 ```
 
-### 4.6 HTTP 配置规范（v7）
+### 4.7 HTTP 配置规范（v7）
 
-v7 引入 HTTP 入站监听，用于爬虫/批量抓取场景。26 个平台策略组与 32.x 一一对应，每组第 1 选项引用对应 32.x 组，实现节点跟随和 IP 信誉共享。
+v7 引入 HTTP 入站监听，用于爬虫/批量抓取场景。当前有 24 个平台镜像组、5 个国内平台组和 2 个兜底组；镜像组第 1 选项引用对应 32.x 组，实现节点跟随和 IP 信誉共享。
 
 #### 4.6.1 listeners 配置
 
@@ -279,7 +309,7 @@ listeners:
 ```yaml
 - name: "🌏 HTTP-国内"
   type: select
-  proxies: [香港★, 香港, 日本★, 日本, 新加坡★, 新加坡, 台湾★, 台湾]
+  proxies: [DIRECT, 香港★, 香港, 日本★, 日本, 新加坡★, 新加坡, 台湾★, 台湾]
 
 - name: "🌍 HTTP-国外"
   type: select
@@ -299,7 +329,8 @@ sub-rules:
   http-rules:                               # v7 新增子链
     - RULE-SET,private_domain,DIRECT
     - RULE-SET,claude_domain,🤖 !Claude HTTP
-    # ... 26 个平台规则（见 DESIGN.md §8.4）
+    - RULE-SET,onedrive_domain,🪟 Microsoft HTTP
+    # ... 24 个镜像平台 + 5 个国内平台 + 2 个兜底（见 DESIGN.md §8.4）
     - MATCH,🌍 HTTP-国外
 ```
 
@@ -341,6 +372,8 @@ proxy: CrossWall   # 替代原来的 proxy: DIRECT
 原因：该机场没有对应地区的节点，或 filter 正则过滤了所有节点。
 
 验证：在面板中检查 `[C] 日本` 等子组是否有节点。如果为空，fallback 会自动跳过该子组。
+
+v8 的顶层主要地区组在同国 A/C/B 全部不可用后，继续遍历直接展开的跨国叶子组。公共顺序为日本→美国→新加坡→台湾→马来西亚→韩国→荷兰→英国→德国→法国→越南，不包含香港。配置不创建独立 `🛟 跨国最终兜底` 组，避免在 v7 既有的 `fallback → url-test` 结构上再增加一层 `fallback → fallback`；顶层国家组也不得互相引用。
 
 ### 5.4 HTTP 调试
 
@@ -390,20 +423,35 @@ print(response.status_code)  # 200（而非标准 curl 的 403）
 原因：健康检查只测试 `gstatic.com/generate_204`，不代表所有网站都能访问。
 解决：v4 起默认出口以 ★稳定版（A→C→B）为首选；v5 在 `🚀 默认出口 32.x` 中同时列出省流版五地，便于在面板切到 C→B→A 省梯队费用。
 
+v8 所有 gstatic 检测增加 `expected-status: 204`，避免劫持页或错误响应被误判健康；主要地区顶层 fallback 每 60 秒检查一次。面板的 `0 ms` 也可能表示 `lazy` 检测尚未执行，不应单独作为节点死亡证据。
+
 ## 6. 版本变更日志
+
+### v8（2026-07-30）
+
+| 变更项 | 说明 |
+|--------|------|
+| 跨国最终兜底 | 跨国叶子组直接展开到各主要国家顶层 fallback，同国 A/C/B 全失效后跨国家恢复；不含香港，也不显示独立卡片 |
+| fallback 兼容性 | 不新增 `fallback → fallback` 层级，降低 Mihomo 嵌套代理组已知运行时风险；保留已长期使用的顶层 `fallback → url-test` 结构；proxy-groups 总数 93、地区部分 19 |
+| 新增地区 | 马来西亚、荷兰、越南使用全机场 `url-test` |
+| 健康判定 | 所有 gstatic 检测增加 `expected-status: 204`；主要地区顶层 fallback 为 60s、`max-failed-times: 2` |
+| Mihomo 指纹兼容 | 移除已废弃的 `global-client-fingerprint`，改由 5 个 proxy-provider 的 `override.client-fingerprint: chrome` 下发 |
+| 微博规则 | 失效的 `weibo.mrs` 替换为 MetaCubeX `sina.mrs` |
+| 配置主文件 | `configs/v8.yaml`；`configs/v7.yaml` 保留为历史版本 |
+| 单设备衍生配置 | 新增 `client/v8.yaml` 与 `client/rulesets/DIRECT.yaml`；保留日常应用分流和故障转移，删除所有路由器入口、住宅与 HTTP 入站 |
 
 ### v7（2026-05-02）
 
 | 变更项 | 说明 |
 |--------|------|
 | HTTP 入站监听 | 新增 `listeners` 段，HTTP 独立端口 7891，多用户认证（crawler1/2/3），绑定 `http-rules` 子链 |
-| 26 个平台镜像策略组 | HTTP 策略组与 32.x 一一对应（24 应用 + 2 兜底），每组第 1 选项引用对应 32.x 组，共享节点和 IP 信誉 |
+| HTTP 策略组 | 24 个平台镜像组、5 个国内平台组和 2 个兜底组；镜像组第 1 选项引用对应 32.x 组 |
 | http-rules 规则链 | 独立子链，覆盖全部 24 个平台 + 国内/国外兜底，复用现有 rule-providers |
 | TLS 指纹检测 | Cloudflare 通过 JA3/JA4 检测非浏览器 TLS 指纹；爬虫需使用 curl_cffi + `impersonate="chrome124"` |
 | IP 信誉预热 | 新节点/切换节点后，浏览器先访问目标站完成人机验证，爬虫再走同一节点继承信誉 |
 | 参考资源 | §2.1 新增 listeners（HTTP）文档链接 |
 | 编码规范 | §4.2 新增 HTTP 策略组命名规范（`emoji + 平台名 + HTTP`，`!` 前缀表示严格封控）；§4.6 重写 HTTP 配置规范 |
-| 设计决策 | HTTP 使用 `select` 类型（非 load-balance），通过引用 32.x 组实现节点跟随；国内流量走代理非 DIRECT（隐藏爬虫真实 IP） |
+| 设计决策 | HTTP 使用 `select` 类型（非 load-balance），通过引用 32.x 组实现节点跟随；国内平台与国内兜底允许 DIRECT |
 | 调试流程 | 新增 §5.4 HTTP 调试（连通性验证、403 决策树、curl_cffi 示例） |
 | 配置主文件 | `configs/v7.yaml` |
 
@@ -414,7 +462,7 @@ print(response.status_code)  # 200（而非标准 curl 的 403）
 | 34.x 住宅网段 | `SUB-RULE` + `sub-rules`：`direct_34_relays` → `direct_34` → `MATCH,🏠 住宅IP 34.x` |
 | 白名单维护 | `DIRECT-34-relays.yaml`（端口/IP）+ `DIRECT-34.yaml`（域名），避免 Tun/UDP 单 RULE-SET 不命中；`DIRECT-32.yaml` 承接原 `prdiy` |
 | 仓库 rulesets 命名 | `策略-网段` 文件名 + `direct_*` provider 键；删除未使用的 `proxy-32` 举例文件 |
-| 配置主文件 | `configs/v6.yaml`；v3/v4/v5 中个人直连 provider 更名为 `direct_32` 并指向 `DIRECT-32.yaml` |
+| 配置主文件 | `configs/v6.yaml`；v3/v4/v5 中个人直连 provider 更名为 `direct_32` 并指向 `configs/rulesets/DIRECT-32.yaml` |
 
 ### v5（2026-04-11）
 

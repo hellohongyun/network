@@ -1,8 +1,8 @@
 # 方案设计文档
 
 > 项目：Mihomo 多网段精细分流配置  
-> 版本：v7
-> 最后更新：2026-05-02
+> 版本：v8
+> 最后更新：2026-07-30
 
 ---
 
@@ -103,7 +103,7 @@ rules:
 
 **普通网段**（无住宅白名单）：在 `rules` 顶部增加 `SRC-IP-CIDR` 即可；`proxies` / `proxy-groups` 按需补充。
 
-**住宅类网段且需白名单（推荐与 v6 一致）**：
+**住宅类网段且需白名单（推荐与 v8 一致）**：
 
 1. 在 `proxies` / `proxy-groups` 中增加住宅节点与出口组（同前）
 2. 若需 Tun/UDP 下稳定命中：新增 **`DIRECT-{网段}-relays.yaml`**（仅端口/IP）与 **`DIRECT-{网段}.yaml`**（域名），均为 classical `payload`
@@ -136,13 +136,14 @@ listeners:
       - username: crawler1
         password: ★填写密码★
 
-# sub-rules：26 个平台策略组与 32.x 一一对应
+# sub-rules：24 个镜像平台组 + 5 个国内平台组 + 2 个兜底组
 sub-rules:
   http-rules:
     - RULE-SET,private_domain,DIRECT
     - RULE-SET,private_ip,DIRECT,no-resolve
     - RULE-SET,claude_domain,🤖 !Claude HTTP
     - RULE-SET,openai_domain,🤖 !ChatGPT HTTP
+    - RULE-SET,onedrive_domain,🪟 Microsoft HTTP
     # ...（每个平台独立规则，详见 §8.3）
     - RULE-SET,cn_domain,🌏 HTTP-国内
     - RULE-SET,geolocation_not_cn,🌍 HTTP-国外
@@ -152,9 +153,31 @@ sub-rules:
 **设计要点**：
 
 - **完全隔离**：HTTP 流量不经过主 `rules`，不匹配任何 `SRC-IP-CIDR` 网段规则
-- **32.x 镜像**：26 个 HTTP 组与 32.x 平台组一一对应，每组第一选项引用对应 32.x 组
+- **32.x 镜像**：24 个 HTTP 应用组与 32.x 平台组一一对应，每组第一选项引用对应 32.x 组；另有 5 个国内平台组和 2 个兜底组
 - **IP 信誉共享**：浏览器和爬虫走同一出口 IP，浏览器验证人机后 IP 获得信誉，爬虫继承
 - **端口 7891**：仅接受 HTTP 协议连接，支持用户认证
+
+### 2.6 单设备衍生配置
+
+单设备配置维护在 `client/v8.yaml`，直接接管运行 Mihomo 的桌面电脑或 Android 设备本机流量。它复用路由器版的应用分流、地区选择、机场梯队和健康检查，但不再通过源网段表达入口角色。
+
+```text
+本机应用流量
+    → TUN / 系统代理
+    → 私有地址与自定义目标直连
+    → 平台规则
+    → 地区组
+    → A/C/B 机场梯队与跨国兜底
+```
+
+设计边界：
+
+- 删除所有 `SRC-IP-CIDR` 和 `SUB-RULE` 网段入口。
+- 删除 33.x 全局出口、34.x 住宅代理、HTTP 7891 listener 及 HTTP 专用策略组。
+- 保留 24 个应用组、19 个地区组、15 个机场子组、默认出口和漏网之鱼，共 60 个策略组。
+- `allow-lan: false`，混合代理、控制器和 DNS 只监听本机回环地址。
+- 客户端自定义直连规则独立维护在 `client/rulesets/DIRECT.yaml`。
+- 路由器的 `configs/*.yaml` 和 `configs/rulesets/*` 是外部部署依赖的稳定路径，不得随目录整理迁移。
 
 ## 3. 机场阶梯式分层体系设计
 
@@ -170,10 +193,9 @@ sub-rules:
 │  [B] 香港 = YiYuan+Kitty 的香港节点选最快                │
 │  [A] 香港 = YunTu 的香港节点选最快                       │
 ├─────────────────────────────────────────────────────────┤
-│ 第2层：地区组（fallback，按梯队优先级故障转移）          │
-│                                                          │
-│  🇭🇰 香港   = fallback [C]→[B]→[A]（省流版）            │
-│  🇭🇰 香港★  = fallback [A]→[C]→[B]（稳定版）           │
+│ 第2层：地区组（fallback，同国优先，随后展开跨国叶子组）  │
+│  🇭🇰 香港   = [C]→[B]→[A]→日→美→新→台→…（省流版）     │
+│  🇭🇰 香港★  = [A]→[C]→[B]→日→美→新→台→…（稳定版）    │
 ├─────────────────────────────────────────────────────────┤
 │ 第3层：应用策略组（select，用户手动选地区）              │
 │                                                          │
@@ -199,6 +221,8 @@ sub-rules:
 | 适用场景 | 视频/社交/日常 | AI/默认出口/全局代理 |
 | 为什么这样设计 | 看视频流量大，优先省钱 | AI 长对话不能断，优先稳定 |
 
+两种地区组在同国三个梯队全部失效后，都会继续尝试直接展开的跨国叶子组，公共顺序为日本→美国→新加坡→台湾→马来西亚→韩国→荷兰→英国→德国→法国→越南，不含香港。这里刻意不建立独立的跨国 `fallback`，避免在 v7 已长期使用的 `fallback → url-test` 结构上再增加一层 `fallback → fallback`。Mihomo 对嵌套代理组存在已知运行时风险，因此每个主要国家顶层组直接引用叶子组，顶层国家组之间也不得互相引用。
+
 ### 3.4 调整梯队归属
 
 机场的梯队归属只由锚点的 `use:` 列表控制。调整时只需移动机场名：
@@ -213,7 +237,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
 
 ### 3.5 次要地区处理
 
-英国/德国/法国/韩国节点数量少，不值得拆成 3 个梯队子组。直接用 `url-test + include-all-providers + filter` 从全部 5 个机场选最快节点。
+英国/德国/法国/韩国/马来西亚/荷兰/越南节点数量少，不值得拆成 3 个梯队子组。直接用 `url-test + include-all-providers + filter` 从全部 5 个机场选最快节点。马来西亚、荷兰、越南在 v8 中同时作为跨国兜底尾部；香港不进入跨国兜底。
 
 ## 4. 策略组分区设计
 
@@ -233,11 +257,10 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
 │  系统: Microsoft, Apple                          │
 │  金融: 加密货币, PayPal                          │
 │  游戏: Steam                                     │
-├─ 第2-B区：HTTP 精细化策略组（26个，与 32.x 一一对应）──┤
-│  24个平台组：首选项引用对应 32.x 组（共享 IP 信誉）     │
-│  2个兜底组：HTTP-国内 / HTTP-国外                   │
-├─ 第3区：地区组（18个）─────────────────────────┤
-│  5主要地区 × 2版本 + 4次要地区 + 全部 + 故转    │
+├─ 第2-B区：HTTP 精细化策略组（31个）────────────────────┤
+│  24个镜像组 + 5个国内平台组 + 2个兜底组                  │
+├─ 第3区：地区组（19个）─────────────────────────┤
+│  5主要地区 × 2版本 + 7次要地区 + 全部 + 故转；跨国兜底展开 │
 ├─ 第4区：机场子组（15个）───────────────────────┤
 │  5主要地区 × 3机场 = 15个 url-test 子组          │
 └────────────────────────────────────────────────┘
@@ -285,7 +308,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
 
 ### 5.2 完整请求链路示例
 
-以 32.x 网段设备访问 `claude.ai` 为例，展示请求从进入到出站的完整 4 层调用链：
+以 32.x 网段设备访问 `claude.ai` 为例，展示请求从进入到出站的调用链：
 
 ```
 设备(32.x) 请求 claude.ai
@@ -303,6 +326,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
        ▼
 【第3层：地区组】🇯🇵 日本★（fallback，自动故障转移）
   优先顺序：[A] 日本 → [C] 日本 → [B] 日本
+            → 直接展开的跨国叶子组（日→美→新→台→马→韩→荷→英→德→法→越）
   [A] 日本 健康检查通过? ✅ → 选它
        │
        ▼
@@ -323,7 +347,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
 | 地区组 | `fallback` | 自动故障转移 | 梯队间自动切换，保证可用性 |
 | 机场子组 | `url-test` | 自动选最快 | 梯队内跨机场选延迟最低的节点 |
 
-**故障转移场景**：若 [A] 日本 健康检查失败 → fallback 自动跳到 [C] 日本 → CrossWall+DuoBaoYiYuan 的日本节点选最快 → 用户无感切换。
+**故障转移场景**：若 [A] 日本失败则依次尝试 [C]/[B] 日本；同国全部失败后，当前顶层组继续遍历直接展开的跨国叶子组，按公共顺序选择首个健康地区。既有连接会中断，应用重连后的新连接使用新出口。
 
 ### 5.3 特殊策略组默认值
 
@@ -407,7 +431,7 @@ newapp_domain:
 # 3a. 若 35.x 为「全屋住宅、无白名单」：一行 SRC 即可
 - SRC-IP-CIDR,192.168.35.0/24,🏠 住宅IP 35.x,no-resolve
 
-# 3b. 若与 34.x 相同需求（白名单直连 + 默认住宅）：复制 v6 的
+# 3b. 若与 34.x 相同需求（白名单直连 + 默认住宅）：复制 v8 的
 #     sub-rules + DIRECT-35.yaml + direct_35 + SUB-RULE 模式（见 §2.3）
 ```
 
@@ -438,7 +462,7 @@ sub_ut_b: use: [YiYuan]
 ### 7.5 住宅网段白名单与文档索引（v6）
 
 - **需求与验收**：`REQUIREMENTS.md`（NET-04、RES-*、NFR-05）
-- **落地配置**：`configs/v6.yaml`、`configs/rulesets/DIRECT-34-relays.yaml`、`configs/rulesets/DIRECT-34.yaml`
+- **落地配置**：`configs/v8.yaml`、`configs/rulesets/DIRECT-34-relays.yaml`、`configs/rulesets/DIRECT-34.yaml`
 - **内核说明**：[Route Rules](https://wiki.metacubex.one/en/config/rules/)（`SUB-RULE`）、[sub-rule](https://wiki.metacubex.one/en/config/sub-rule/)
 
 ### 7.6 HTTP 扩展指南（v7 新增）
@@ -482,7 +506,7 @@ listeners:
 
 ### 8.1 32.x 镜像架构
 
-v7 最终设计：HTTP 不使用分类分层，而是与 32.x **逐平台一一对应**。26 个 HTTP 组（24 个应用组 + 2 个兜底组），每个组的第一选项引用对应 32.x 策略组，实现节点自动跟随和 IP 信誉共享。
+v7 最终设计：HTTP 不使用分类分层。当前共有 31 个 HTTP 组：24 个应用镜像组、5 个国内平台组和 2 个兜底组；24 个镜像组的第一选项引用对应 32.x 策略组，实现节点自动跟随和 IP 信誉共享。
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
@@ -520,7 +544,7 @@ v7 最终设计：HTTP 不使用分类分层，而是与 32.x **逐平台一一�
 
 **cf_clearance cookie**：Cloudflare 验证人机后下发此 cookie，绑定到 IP + TLS 指纹。浏览器验证后，同 IP 的 curl_cffi 请求可复用该 cookie（但 TLS 指纹不同时仍可能失效）。实践中，共享 IP 的信誉预热效果是主要的，cookie 复用是附加的。
 
-### 8.3 策略组清单（26 个）
+### 8.3 策略组清单（31 个）
 
 | 分类 | HTTP 策略组 | 32.x 默认选项 | 说明 |
 |------|-------------|-------------|------|
@@ -548,7 +572,8 @@ v7 最终设计：HTTP 不使用分类分层，而是与 32.x **逐平台一一�
 | 金融 | 🪙 加密货币 HTTP | 🪙 加密货币 32.x | |
 | 金融 | 💰 PayPal HTTP | 💰 PayPal 32.x | |
 | 游戏 | 🎮 Steam HTTP | 🎮 Steam 32.x | |
-| 兜底 | 🌏 HTTP-国内 | — | 国内域名/IP，手选节点 |
+| 国内 | 📺 Bilibili HTTP / 📱 微博 HTTP / 💡 知乎 HTTP / 🔴 小红书 HTTP / 🎬 豆瓣 HTTP | DIRECT | 可手动切换地区代理 |
+| 兜底 | 🌏 HTTP-国内 | DIRECT | 国内域名/IP，可手动切换地区代理 |
 | 兜底 | 🌍 HTTP-国外 | 🚀 默认出口 32.x | 国外流量兜底 |
 
 **`!` 前缀**：表示该平台有严格 IP 封控（Claude/ChatGPT/Twitter/Instagram/Facebook），切换节点需谨慎。
@@ -597,6 +622,7 @@ sub-rules:
     - RULE-SET,notion_domain,📝 Notion HTTP
 
     # ── 系统/办公 ──
+    - RULE-SET,onedrive_domain,🪟 Microsoft HTTP
     - RULE-SET,microsoft_domain,🪟 Microsoft HTTP
     - RULE-SET,apple_domain,🍎 Apple HTTP
     - RULE-SET,apple_ip,🍎 Apple HTTP,no-resolve
@@ -605,6 +631,13 @@ sub-rules:
     - RULE-SET,crypto_domain,🪙 加密货币 HTTP
     - RULE-SET,paypal_domain,💰 PayPal HTTP
     - RULE-SET,steam_domain,🎮 Steam HTTP
+
+    # ── 国内平台 ──
+    - RULE-SET,bilibili_domain,📺 Bilibili HTTP
+    - RULE-SET,weibo_domain,📱 微博 HTTP
+    - RULE-SET,zhihu_domain,💡 知乎 HTTP
+    - RULE-SET,xiaohongshu_domain,🔴 小红书 HTTP
+    - RULE-SET,douban_domain,🎬 豆瓣 HTTP
 
     # ── 兜底 ──
     - RULE-SET,cn_domain,🌏 HTTP-国内
@@ -617,7 +650,7 @@ sub-rules:
 
 | 差异点 | 32.x 主路由 `rules` | HTTP `http-rules` |
 |--------|---------------------|----------------------|
-| 国内流量 | `cn_domain/cn_ip → DIRECT` | `cn_domain/cn_ip → 🌏 HTTP-国内`（走代理，隐藏爬虫真实 IP） |
+| 国内流量 | `cn_domain/cn_ip → DIRECT` | `cn_domain/cn_ip → 🌏 HTTP-国内`（默认 DIRECT，可切地区代理） |
 | 国外兜底 | `geolocation_not_cn → 🚀 默认出口 32.x` | `geolocation_not_cn → 🌍 HTTP-国外`（引用默认出口 32.x） |
 | 最终兜底 | `MATCH → 🐟 漏网之鱼` | `MATCH → 🌍 HTTP-国外`（确保无直连泄漏） |
 | 平台覆盖 | 完全相同 | 完全相同，一一对应 |
@@ -684,10 +717,10 @@ v7 对 v6 的路由规则和子规则**零修改**，仅新增 HTTP 相关配置
 
 | 对比项 | v6 | v7 | 变化 |
 |--------|----|----|------|
-| 策略组 | 59 个 | 85+ | +26 HTTP 组，原有 0 修改 |
+| 策略组 | 59 个 | 90 个 | +31 HTTP 组，原有 0 修改 |
 | 路由规则 | 43 条 | 43 条 | 完全一致 |
 | 子规则 | residential34 | +http-rules | residential34 未动 |
-| 规则集 | 42 个 | 46 个 | HTTP 复用现有规则集 + 4 个已定义未使用的规则集（amazon/bing/ebay/shopify） |
+| 规则集 | 42 个 | 51 个 | HTTP 增加 5 个国内平台规则集，并保留 4 个已定义未使用的规则集 |
 | DNS | — | — | 完全一致 |
 | 机场订阅 | 5 个 | 5 个 | 完全一致 |
 | 静态节点 | 1 个 | 1 个 | 完全一致 |
@@ -723,4 +756,5 @@ v7 对 v6 的路由规则和子规则**零修改**，仅新增 HTTP 相关配置
 |------|------|---------|
 | v5 | 2026-03-xx | 5 机场阶梯式分层架构，双轨(★/省流)策略组 |
 | v6 | 2026-04-12 | 住宅网段白名单（SUB-RULE + DIRECT-34 relays/domain 分文件），v6 住宅 IP 出口 |
-| v7 | 2026-05-02 | HTTP 入站（listeners + rule 绑定 + 多用户认证），26 个平台镜像策略组（与 32.x 一一对应），第 1 选项引用 32.x 组共享节点/IP 信誉，TLS 指纹检测（curl_cffi），IP 信誉预热流程 |
+| v7 | 2026-05-02 | HTTP 入站（listeners + rule 绑定 + 多用户认证），24 个平台镜像组、5 个国内平台组和 2 个兜底组，镜像组引用 32.x 组共享节点/IP 信誉 |
+| v8 | 2026-07-30 | 不含香港的跨国兜底直接展开到主要国家顶层组，避免新增 `fallback → fallback` 层级；新增马来西亚/荷兰/越南；健康检查严格要求 204；地区 fallback 周期调整为 60 秒 |
