@@ -3,7 +3,7 @@
 `client/` 维护桌面电脑和 Android 设备本机运行 Mihomo 时使用的配置。
 
 - `v8.yaml`：当前单设备推荐模板。
-- `rulesets/DIRECT.yaml`：当前设备的自定义直连目标（仓库内置为占位示例，发布/使用前替换为你自己的域名）。
+- `rulesets/DIRECT.yaml`：当前设备的自定义直连目标（内置为作者个人示例，使用前请替换为你自己的域名）。
 
 配置直接接管运行客户端的设备，不包含家庭网段、住宅 IP 或 HTTP 7891 入站。使用前应复制 `v8.yaml` 为私有的 `v8.local.yaml`，填写 5 个机场订阅 URL，并在 Clash Verge Rev、Clash Party、FlClash 等较新的 Mihomo 客户端中启用系统代理或 TUN。
 

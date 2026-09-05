@@ -164,6 +164,8 @@ DNS 安全不只取决于这份 YAML。OpenWrt 的 DNS 劫持和防火墙必须�
 - [configs/rulesets/DIRECT-34-relays.yaml](configs/rulesets/DIRECT-34-relays.yaml)：34.x 端口/IP 直连白名单；
 - [configs/rulesets/DIRECT-34.yaml](configs/rulesets/DIRECT-34.yaml)：34.x 域名直连白名单。
 
+文件内是作者家庭网络的实际示例条目，使用前请替换为你自己的直连域名、中继端口与 IP。
+
 修改规则文件并推送到自己的 GitHub 仓库后，OpenClash 更新对应 rule-provider 即可，不必每次重传主配置。
 
 ## 已有四网段后的配置部署指南

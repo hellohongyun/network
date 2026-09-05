@@ -334,7 +334,7 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
   use: [YunTu] → filter 出日本节点 → url-test 选延迟最低
        │
        ▼
-【出口】YunTu 日本节点（如 jp1.airport.example.com:443）
+【出口】YunTu 日本节点（如 jp1.yuntu.com:443）
   → 加密隧道 → 出口 IP 1.2.3.4 → 访问 claude.ai ✅
 ```
 
