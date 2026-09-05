@@ -86,7 +86,14 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
 
 ## 怎么部署（OpenClash）
 
-前提：路由器已装 OpenClash（`Master` 分支）+ 较新 Mihomo Meta 内核，并已创建 31/32/33/34 四个网段。
+**使用前提（先完成路由器侧的网络建设，本配置才能生效）：**
+
+1. 在 OpenWrt 创建 4 个接口 + DHCP 网段：`192.168.31.x` / `32.x` / `33.x` / `34.x`；
+2. 创建并绑定对应 Wi-Fi（如 `ap-direct` / `ap-rule` / `ap-Global` / `ap-34x`）；
+3. 配置防火墙区域，确认各网段能正常上网；
+4. 安装 OpenClash（`Master` 分支）+ 较新 Mihomo Meta 内核。
+
+本配置只负责分流，不负责创建接口、Wi-Fi 和 DHCP。
 
 1. **上传**：OpenClash 配置管理页面上传 `v8.local.yaml`（保存到 `/etc/openclash/config/`）。保留旧配置，出问题能一键切回；
 2. **检查语法**：SSH 执行
