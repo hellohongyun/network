@@ -189,9 +189,9 @@ sub-rules:
 ┌─────────────────────────────────────────────────────────┐
 │ 第1层：梯队子组（url-test，跨该梯队所有机场选最快）      │
 │                                                          │
-│  [C] 香港 = CrossWall+DuoBaoYiYuan 的香港节点选最快      │
-│  [B] 香港 = YiYuan+Kitty 的香港节点选最快                │
-│  [A] 香港 = YunTu 的香港节点选最快                       │
+│  [C] 香港 = AirportC1+AirportC2 的香港节点选最快      │
+│  [B] 香港 = AirportB1+AirportB2 的香港节点选最快                │
+│  [A] 香港 = AirportA 的香港节点选最快                       │
 ├─────────────────────────────────────────────────────────┤
 │ 第2层：地区组（fallback，同国优先，随后展开跨国叶子组）  │
 │  🇭🇰 香港   = [C]→[B]→[A]→日→美→新→台→…（省流版）     │
@@ -208,9 +208,9 @@ sub-rules:
 
 | 梯队 | 机场 | 定位 | 适用场景 |
 |------|------|------|---------|
-| 主力 C | CrossWall + DuoBaoYiYuan | 速度适中价格合理 | 视频/社交/日常大流量 |
-| 保底 B | YiYuan + Kitty | 最便宜，兜底用 | 主力挂了时备用 |
-| 优质 A | YunTu | 最贵最稳 | AI/默认出口/全局代理 |
+| 主力 C | AirportC1 + AirportC2 | 速度适中价格合理 | 视频/社交/日常大流量 |
+| 保底 B | AirportB1 + AirportB2 | 最便宜，兜底用 | 主力挂了时备用 |
+| 优质 A | AirportA | 最贵最稳 | AI/默认出口/全局代理 |
 
 ### 3.3 省流版 vs 稳定版
 
@@ -228,9 +228,9 @@ sub-rules:
 机场的梯队归属只由锚点的 `use:` 列表控制。调整时只需移动机场名：
 
 ```yaml
-# 例：把 Kitty 从保底移到主力
-sub_ut_c: use: [CrossWall, DuoBaoYiYuan, Kitty]  # 加入主力
-sub_ut_b: use: [YiYuan]                           # 保底只剩一元
+# 例：把 AirportB2 从保底移到主力
+sub_ut_c: use: [AirportC1, AirportC2, AirportB2]  # 加入主力
+sub_ut_b: use: [AirportB1]                           # 保底只剩一个
 ```
 
 无需改动策略组、规则、规则集等任何其他部分。
@@ -331,10 +331,10 @@ sub_ut_b: use: [YiYuan]                           # 保底只剩一元
        │
        ▼
 【第4层：机场子组】[A] 日本（url-test，自动选最快节点）
-  use: [YunTu] → filter 出日本节点 → url-test 选延迟最低
+  use: [AirportA] → filter 出日本节点 → url-test 选延迟最低
        │
        ▼
-【出口】YunTu 日本节点（如 jp1.yuntu.com:443）
+【出口】AirportA 日本节点（如 jp1.yuntu.com:443）
   → 加密隧道 → 出口 IP 1.2.3.4 → 访问 claude.ai ✅
 ```
 
@@ -446,7 +446,7 @@ NewAirport:
 
 # 2. 在对应梯队的锚点 use: 列表中加入机场名
 sub_ut_c: &sub_ut_c
-  use: [CrossWall, DuoBaoYiYuan, NewAirport]  # 加入主力梯队
+  use: [AirportC1, AirportC2, NewAirport]  # 加入主力梯队
 ```
 
 无需修改策略组、规则或规则集。
@@ -454,9 +454,9 @@ sub_ut_c: &sub_ut_c
 ### 7.4 调整机场梯队归属
 
 ```yaml
-# 把 Kitty 从保底梯队移到主力梯队
-sub_ut_c: use: [CrossWall, DuoBaoYiYuan, Kitty]
-sub_ut_b: use: [YiYuan]
+# 把 AirportB2 从保底梯队移到主力梯队
+sub_ut_c: use: [AirportC1, AirportC2, AirportB2]
+sub_ut_b: use: [AirportB1]
 ```
 
 ### 7.5 住宅网段白名单与文档索引（v6）

@@ -47,15 +47,15 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
 
 **3. 机场三梯队 + 故障接力**
 
-| 梯队 | 默认机场 | 定位 |
+| 梯队 | 槽位 | 定位 |
 | --- | --- | --- |
-| A 优质 | YunTu | 稳定优先，AI 和重要业务 |
-| C 主力 | CrossWall、DuoBaoYiYuan | 日常流量主力 |
-| B 保底 | YiYuan、Kitty | 低成本兜底 |
+| A 优质 | AirportA（1 个） | 稳定优先，AI 和重要业务 |
+| C 主力 | AirportC1、AirportC2 | 日常流量主力 |
+| B 保底 | AirportB1、AirportB2 | 低成本兜底 |
 
 - 省流地区组：`C → B → A`；稳定地区组（带 ★）：`A → C → B`
 - 同国机场全挂后自动跨国兜底（美国→日本→新加坡→台湾→…，不含香港）
-- 机场名只是逻辑标识，换成自己的机场需同步修改 `proxy-providers` 和锚点
+- 槽位名与你的机场无关：把订阅 URL 填进对应 provider 即可；调整梯队归属只需移动锚点 `use:` 列表里的名字
 
 **4. 其他**
 
@@ -72,7 +72,7 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
 
 1. 把 `configs/v8.yaml` 复制为 `configs/v8.local.yaml`（已被 .gitignore 忽略，不会上传）；
 2. 在副本里填写：
-   - `proxy-providers`：5 个机场订阅 URL（`YOUR_TOKEN` 位置）；
+   - `proxy-providers`：5 个通用槽位（AirportA / AirportB1 / AirportB2 / AirportC1 / AirportC2），把你的订阅 URL 填进 `YOUR_TOKEN` 位置；机场不足 5 个就删掉多余槽位，并同步移除锚点 `use:` 里的引用；
    - `secret`：控制面板（9090）访问密钥；
    - `listeners`：HTTP 7891 三个用户密码（`★填写crawler密码★` 位置）；
    - 使用 34.x 才需要：住宅代理的地址、端口、用户名、密码（`YOUR_RESIDENTIAL_*` 位置）；
@@ -81,7 +81,7 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
 ### 电脑 / Android 单机版
 
 1. 把 `client/v8.yaml` 复制为私有文件；
-2. 填写 5 个订阅 URL（按需设置 `secret`）；
+2. 把订阅 URL 填进 5 个通用槽位（按需设置 `secret`）；
 3. 导入 Clash Verge Rev、Clash Party、FlClash 等 Mihomo 客户端，开启系统代理或 TUN。
 
 ## 怎么部署（OpenClash）

@@ -201,7 +201,7 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 # 每个梯队的 use: 包含该梯队所有机场，url-test 跨机场选最快
 sub_ut_c: &sub_ut_c
   type: url-test
-  use: [CrossWall, DuoBaoYiYuan]  # 主力梯队：多机场
+  use: [AirportC1, AirportC2]  # 主力梯队：多机场
   url: https://www.gstatic.com/generate_204
   expected-status: 204
   interval: 300
@@ -217,7 +217,7 @@ sub_ut_c: &sub_ut_c
 最新版 Mihomo 已移除全局 `global-client-fingerprint`。v8 在每个订阅提供器中通过 `override` 下发 Chrome 指纹：
 
 ```yaml
-CrossWall:
+AirportC1:
   type: http
   url: "..."
   override:
@@ -364,7 +364,7 @@ curl -sL -o /dev/null -w "%{http_code}" "URL地址"
 curl -I "订阅URL"
 
 # 如果超时，域名可能被墙，改为借道已有机场拉取：
-proxy: CrossWall   # 替代原来的 proxy: DIRECT
+proxy: AirportC1   # 替代原来的 proxy: DIRECT
 ```
 
 ### 5.3 某地区子组为空
@@ -468,12 +468,12 @@ v8 所有 gstatic 检测增加 `expected-status: 204`，避免劫持页或错误
 
 | 变更项 | 原值 | 新值 | 原因 |
 |--------|------|------|------|
-| 机场数量 | 3 个（AirportA/B/C） | 5 个（CrossWall/DuoBaoYiYuan/YiYuan/Kitty/YunTu） | 阶梯式多机场分层 |
+| 机场数量 | 3 个（AirportA/B/C） | 5 个（AirportC1/AirportC2/AirportB1/AirportB2/AirportA） | 阶梯式多机场分层 |
 | 梯队设计 | 每层 1 个机场 | 每层 1~2 个机场，层内 url-test 跨机场选最快 | 层内多机场冗余 |
 | 稳定版★ fallback | A→B→C | A→C→B | C(主力)质量优于B(保底)，挂了先落主力 |
 | 优质梯队 tolerance | 50ms | 100ms | AI 长对话减少不必要的节点切换 |
 | 故障转移 filter | 6 个排除词 | 9 个排除词（+地址/客户端/紧急备用） | 适配新机场的信息节点 |
-| 德国 filter | 无 Deutschland | 增加 Deutschland 匹配 | Kitty 机场使用德语命名 |
+| 德国 filter | 无 Deutschland | 增加 Deutschland 匹配 | AirportB2 机场使用德语命名 |
 | v4 typo 修复 | `英国住宅-35"d` | `英国住宅-35"` | 去掉多余字符 |
 | v4 typo 修复 | 注释 `A→B→A` | 注释 `A→C→B` | 修正注释笔误 |
 | 默认出口 32.x 可选 | 仅 ★稳定五地 | ★稳定 + 省流五地 + 次要地区等 | 面板可切省流，自定义范围更大 |

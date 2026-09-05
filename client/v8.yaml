@@ -109,15 +109,23 @@ dns:
 # ┌─────────────────────────────────────────────────────────────┐
 # │ 梯队分配（调整梯队只需移动机场名到对应锚点的 use: 列表）   │
 # │                                                             │
-# │ 主力 C：CrossWall + DuoBaoYiYuan → 日常大流量主力           │
-# │ 保底 B：YiYuan + Kitty           → 最便宜，C挂了兜底       │
-# │ 优质 A：YunTu                    → 最贵最稳，AI专用        │
+# │ 主力 C：AirportC1 + AirportC2 → 日常大流量主力              │
+# │ 保底 B：AirportB1 + AirportB2 → 最便宜，C挂了兜底           │
+# │ 优质 A：AirportA → 最贵最稳，AI专用                         │
+# └─────────────────────────────────────────────────────────────┘
+# ┌─────────────────────────────────────────────────────────────┐
+# │ 使用说明（重要）：                                         │
+# │ · 5 个 provider 是通用槽位，把你自己机场的订阅 URL 填进   │
+# │   各 provider 的 url（替换 YOUR_TOKEN）即可，无需改名      │
+# │ · 机场不足 5 个：删除多余的 provider，并同步把它从对应     │
+# │   锚点 use: 列表里移除（见下方「代理组锚点」）             │
+# │ · 想调整梯队归属：移动 use: 列表里的名字，其余不用改       │
 # └─────────────────────────────────────────────────────────────┘
 proxy-providers:
   # ── 主力梯队 C ─────────────────────────────────────────────
-  CrossWall:
+  AirportC1:
     type: http
-    url: "https://example.com/crosswall/subscribe?token=YOUR_TOKEN"
+    url: "https://example.com/airport-c1/subscribe?token=YOUR_TOKEN"
     interval: 86400
     override:
       client-fingerprint: chrome
@@ -131,9 +139,9 @@ proxy-providers:
     proxy: DIRECT
     exclude-filter: "流量|套餐|到期|剩余|重置|官网|网站|最新网址|防失联|失联|公告|通知|TG|Telegram|群|频道|说明|QQ群|客服|工单|订阅|Expire|Traffic|Reset|Remaining|Official"
 
-  DuoBaoYiYuan:
+  AirportC2:
     type: http
-    url: "https://example.com/duobao/subscribe?token=YOUR_TOKEN"
+    url: "https://example.com/airport-c2/subscribe?token=YOUR_TOKEN"
     interval: 86400
     override:
       client-fingerprint: chrome
@@ -148,9 +156,9 @@ proxy-providers:
     exclude-filter: "流量|套餐|到期|剩余|重置|官网|网站|最新网址|防失联|失联|公告|通知|TG|Telegram|群|频道|说明|QQ群|客服|工单|订阅|Expire|Traffic|Reset|Remaining|Official"
 
   # ── 保底梯队 B ─────────────────────────────────────────────
-  YiYuan:
+  AirportB1:
     type: http
-    url: "https://example.com/yiyuan/subscribe?token=YOUR_TOKEN"
+    url: "https://example.com/airport-b1/subscribe?token=YOUR_TOKEN"
     interval: 86400
     override:
       client-fingerprint: chrome
@@ -164,9 +172,9 @@ proxy-providers:
     proxy: DIRECT
     exclude-filter: "流量|套餐|到期|剩余|重置|官网|网站|最新网址|防失联|失联|公告|通知|TG|Telegram|群|频道|说明|QQ群|客服|工单|订阅|Expire|Traffic|Reset|Remaining|Official"
 
-  Kitty:
+  AirportB2:
     type: http
-    url: "https://example.com/kitty/subscribe?token=YOUR_TOKEN"
+    url: "https://example.com/airport-b2/subscribe?token=YOUR_TOKEN"
     interval: 86400
     override:
       client-fingerprint: chrome
@@ -183,12 +191,12 @@ proxy-providers:
   # ── 优质梯队 A ─────────────────────────────────────────────
   # ⚠️ 排查指引：如果面板不显示某机场节点，请检查：
   #   1. 在路由器终端执行 curl -I "订阅URL" 看是否能访问
-  #   2. 如果返回超时/拒绝，说明域名被墙，尝试把 proxy: DIRECT 改为 proxy: CrossWall（借道主力机场拉取）
+  #   2. 如果返回超时/拒绝，说明域名被墙，尝试把 proxy: DIRECT 改为 proxy: AirportC1（借道主力机场拉取）
   #   3. 确认订阅 token 未过期
   #   4. 确认 exclude-filter 没有过滤掉所有节点（临时注释掉 exclude-filter 测试）
-  YunTu:
+  AirportA:
     type: http
-    url: "https://example.com/yuntu/subscribe?token=YOUR_TOKEN"
+    url: "https://example.com/airport-a/subscribe?token=YOUR_TOKEN"
     interval: 86400
     override:
       client-fingerprint: chrome
@@ -207,33 +215,33 @@ proxy-providers:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # ┌─────────────────────────────────────────────────────────────┐
 # │ 调整梯队归属：把机场名从一个 use: 移到另一个即可            │
-# │ 例：Kitty 从保底移到主力 → sub_ut_c.use 加 Kitty,          │
-# │     sub_ut_b.use 删 Kitty，其余全部不用改                  │
+# │ 例：AirportB2 从保底移到主力 → sub_ut_c.use 加 AirportB2,      │
+# │     sub_ut_b.use 删 AirportB2，其余全部不用改                  │
 # └─────────────────────────────────────────────────────────────┘
-# 主力梯队子组：跨 CrossWall + DuoBaoYiYuan 选最快节点
+# 主力梯队子组：跨 AirportC1 + AirportC2 选最快节点
 sub_ut_c: &sub_ut_c
   type: url-test
-  use: [CrossWall, DuoBaoYiYuan]
+  use: [AirportC1, AirportC2]
   url: https://www.gstatic.com/generate_204
   expected-status: 204
   interval: 300
   timeout: 5000
   tolerance: 50
 
-# 保底梯队子组：跨 YiYuan + Kitty 选最快节点
+# 保底梯队子组：跨 AirportB1 + AirportB2 选最快节点
 sub_ut_b: &sub_ut_b
   type: url-test
-  use: [YiYuan, Kitty]
+  use: [AirportB1, AirportB2]
   url: https://www.gstatic.com/generate_204
   expected-status: 204
   interval: 300
   timeout: 5000
   tolerance: 50
 
-# 优质梯队子组：YunTu 内选最快节点（tolerance 调高减少切换，AI 长对话不怕慢怕断）
+# 优质梯队子组：AirportA 内选最快节点（tolerance 调高减少切换，AI 长对话不怕慢怕断）
 sub_ut_a: &sub_ut_a
   type: url-test
-  use: [YunTu]
+  use: [AirportA]
   url: https://www.gstatic.com/generate_204
   expected-status: 204
   interval: 300
@@ -963,9 +971,9 @@ proxy-groups:
   # ══════════════════════════════════════════════════════════════
   # 【第4区】机场子组（基础设施，沉底）
   #
-  #  [C] = 主力梯队（CrossWall + DuoBaoYiYuan）跨机场选最快
-  #  [B] = 保底梯队（YiYuan + Kitty）跨机场选最快
-  #  [A] = 优质梯队（YunTu）选最快
+  #  [C] = 主力梯队（AirportC1 + AirportC2）跨机场选最快
+  #  [B] = 保底梯队（AirportB1 + AirportB2）跨机场选最快
+  #  [A] = 优质梯队（AirportA）选最快
   # ══════════════════════════════════════════════════════════════
 
   # ── 香港子组 ─────────────────────────────────────────────────
