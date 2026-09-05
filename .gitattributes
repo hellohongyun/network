@@ -1,0 +1,8 @@
+# 统一文本行尾：仓库内存储 LF，检出时按平台自动转换
+* text=auto
+
+# 配置文件与文档强制 LF
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf

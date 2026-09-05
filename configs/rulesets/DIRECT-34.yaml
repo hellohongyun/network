@@ -1,5 +1,5 @@
 # DIRECT-34：34.x 子规则链中的「域名」白名单（在 DIRECT-34-relays 之后匹配）
 # 中继 IP/端口请改 configs/rulesets/DIRECT-34-relays.yaml
 payload:
-  - DOMAIN,direct.example.com
+  # 占位示例：请替换为你自己的直连域名
   - DOMAIN-SUFFIX,example.com

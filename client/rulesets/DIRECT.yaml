@@ -1,5 +1,5 @@
 # DIRECT：桌面电脑或 Android 设备本机流量的自定义直连列表
 # 由客户端配置 RULE-SET,direct_client,DIRECT 引用；仅影响命中规则的目标
 payload:
+  # 占位示例：请替换为你自己的直连域名
   - DOMAIN-SUFFIX,example.com
-  - DOMAIN-SUFFIX,example.org
