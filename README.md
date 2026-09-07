@@ -40,7 +40,7 @@
 | 192.168.34.x | ap-34x | 默认走住宅代理，白名单直连 |
 
 Wi-Fi 和网段需要在 OpenWrt 里自己创建，配置只负责分流。
-![Uploading image.png…]()
+![参考图](https://github.com/hellohongyun/network/blob/main/wifi.png)
 
 **2. 按平台独立选国家**
 
