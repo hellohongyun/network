@@ -1856,6 +1856,7 @@ rule-providers:
     <<: *ip
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"
 
+# 个人自定义直连域名（换成自己的） ◆
   direct_32:
     <<: *classical
     url: "https://raw.githubusercontent.com/hellohongyun/network/refs/heads/main/configs/rulesets/DIRECT-32.yaml"
