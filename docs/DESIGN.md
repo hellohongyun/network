@@ -2,7 +2,7 @@
 
 > 项目：Mihomo 多网段精细分流配置  
 > 版本：v8
-> 最后更新：2026-07-30
+> 最后更新：2026-10-02
 
 ---
 
@@ -42,33 +42,19 @@
         └───────────┘ └──────────┘ └───────────┘
 ```
 
-### 1.1 HTTP 入站架构（v7 新增）
+### 1.1 普通代理入口架构
 
-爬虫/批量抓取走独立 HTTP 端口（7891），每个平台有独立策略组，第一选项引用对应 32.x 组，实现 IP 信誉共享：
+程序通过 OpenClash 普通代理端口进入 Mihomo，在规则模式下与透明代理共用主 `rules` 和既有策略组：
 
-```
-                  ┌──────────────────────────────────────────┐
-                  │          OpenWrt 路由器 Mihomo 内核         │
-                  └───────────────┬──────────────────────────┘
-                                  │
-          ┌───────────────────────┼──────────────────────────┐
-          │ TUN 透明代理           │  HTTP 入站 :7891         │
-          │ (32.x → 应用策略组)   │  users: crawler1/2/3     │
-          └───────────┬───────────┴─────────────┬────────────┘
-                      │                         │
-              主路由 rules 链           http-rules 子链
-                      │                         │
-          ┌───────────▼───────────┐   ┌─────────▼────────────────────┐
-          │  🤖 Claude 32.x        │◄──│  🤖 !Claude HTTP            │
-          │  （当前选: 日本★）     │   │  第1选项 = Claude 32.x        │
-          │  出口 IP: 1.2.3.4     │   │  → 跟随节点，共享出口 IP 信誉  │
-          └───────────────────────┘   │  第2+选项 = ★稳定/省流（手选）│
-                                      └──────────────────────────────┘
+```text
+程序（建议 192.168.32.x）
+    → HTTP :7890 / SOCKS5 :7891 / 混合 :7893
+    → OpenClash 页面设置的账号认证
+    → 主 rules 按实际来源 IP 和目标匹配
+    → 平台策略组 → 地区组 → 机场节点
 ```
 
-**IP 信誉共享**：浏览器（32.x）访问并完成人机验证 → 出口 IP 被目标站点标记为可信 → 爬虫走相同 HTTP 节点（第一选项引用同一 32.x 组）→ 共享出口 IP → 继承信誉，大幅降低 403 概率。
-
-**与 TUN 透明代理的关系**：`listeners.rule: http-rules` 绑定独立子链，HTTP 流量不经过主 `rules`，不匹配任何 `SRC-IP-CIDR` 网段规则，与 TUN 透明代理零耦合。
+普通入口不单独绑定机场，也不维护 HTTP 平台镜像组。程序实际来源为 32.x 时，平台请求使用与其他 32.x 流量相同的策略组；地区内测速与故障切换仍可能改变最终节点。目标站点是否接受请求，需要另外验证。
 
 ## 2. 网段路由设计
 
@@ -121,41 +107,31 @@ rules:
 
 **rule-provider 键名**：小写 + 下划线，与文件名对应，如 `direct_32`、`direct_34_relays`、`direct_34`。同类住宅网段可增加 `DIRECT-35-relays.yaml` 等。
 
-### 2.5 HTTP 入站路由设计（v7 新增）
+### 2.5 普通代理入口路由设计
 
-HTTP 入站不经过 TUN 透明代理的网段路由链，而是通过 `listeners` 独立配置，绑定专属 `http-rules` 子链实现隔离分流。
+全局普通端口配置为：
 
 ```yaml
-# listeners 配置
-listeners:
-  - name: http-in
-    type: http
-    port: 7891
-    rule: http-rules      # 绑定专用 sub-rules
-    users:
-      - username: crawler1
-        password: ★填写密码★
-
-# sub-rules：24 个镜像平台组 + 5 个国内平台组 + 2 个兜底组
-sub-rules:
-  http-rules:
-    - RULE-SET,private_domain,DIRECT
-    - RULE-SET,private_ip,DIRECT,no-resolve
-    - RULE-SET,claude_domain,🤖 !Claude HTTP
-    - RULE-SET,openai_domain,🤖 !ChatGPT HTTP
-    - RULE-SET,onedrive_domain,🪟 Microsoft HTTP
-    # ...（每个平台独立规则，详见 §8.3）
-    - RULE-SET,cn_domain,🌏 HTTP-国内
-    - RULE-SET,geolocation_not_cn,🌍 HTTP-国外
-    - MATCH,🌍 HTTP-国外
+port: 7890        # HTTP 代理
+socks-port: 7891  # SOCKS5 代理
+mixed-port: 7893  # 同时接受 HTTP 和 SOCKS5
 ```
 
-**设计要点**：
+账号密码在 OpenClash 的 SOCKS5/HTTP(S) 认证页面设置并应用，模板不维护 crawler 用户或真实认证凭据。控制面板 `secret` 是独立的 API 密钥，不作为代理入口密码。
 
-- **完全隔离**：HTTP 流量不经过主 `rules`，不匹配任何 `SRC-IP-CIDR` 网段规则
-- **32.x 镜像**：24 个 HTTP 应用组与 32.x 平台组一一对应，每组第一选项引用对应 32.x 组；另有 5 个国内平台组和 2 个兜底组
-- **IP 信誉共享**：浏览器和爬虫走同一出口 IP，浏览器验证人机后 IP 获得信誉，爬虫继承
-- **端口 7891**：仅接受 HTTP 协议连接，支持用户认证
+在规则模式下，普通入口进入 §2.1 的主规则，按内核实际看到的来源分流：
+
+| 实际来源 IP | 行为 |
+|------------|------|
+| 192.168.31.x | DIRECT |
+| 192.168.32.x | 继续匹配平台及国内/国外兜底规则 |
+| 192.168.33.x | `🌐 全局代理 33.x` 当前选择 |
+| 192.168.34.x | `residential34` 白名单直连，其余住宅代理 |
+| 其他来源 | 不匹配上述专用源规则，继续后续主规则 |
+
+需要按平台代理的程序应位于 32.x；容器、路由器本机任务、中继或 NAT 可能改变来源，部署后须用 Zashboard 连接详情核验 sourceIP。连接到哪个路由器地址、使用哪个认证账号，都不能替代来源 IP 匹配。
+
+OpenClash 页面可能覆写模板字段。保存并应用后需检查内核实际加载的端口、认证和规则模式，避免旧运行配置保留历史 HTTP listener。
 
 ### 2.6 单设备衍生配置
 
@@ -173,7 +149,7 @@ sub-rules:
 设计边界：
 
 - 删除所有 `SRC-IP-CIDR` 和 `SUB-RULE` 网段入口。
-- 删除 33.x 全局出口、34.x 住宅代理、HTTP 7891 listener 及 HTTP 专用策略组。
+- 不包含 33.x 全局出口、34.x 住宅代理或路由器专用入口。
 - 保留 24 个应用组、19 个地区组、15 个机场子组、默认出口和漏网之鱼，共 60 个策略组。
 - `allow-lan: false`，混合代理、控制器和 DNS 只监听本机回环地址。
 - 客户端自定义直连规则独立维护在 `client/rulesets/DIRECT.yaml`。
@@ -247,7 +223,7 @@ sub_ut_b: use: [AirportB1]                           # 保底只剩一个
 ┌─ 第1区：出口组（4个）──────────────────────────┐
 │  🚀 默认出口 32.x    → 未命中规则的海外流量（可选 ★稳定 / 无★省流）│
 │  🌐 全局代理 33.x    → 33.x 网段全部流量        │
-│  🏠 住宅IP 34.x      → 34.x 网段全部流量        │
+│  🏠 住宅IP 34.x      → 34.x 非白名单流量        │
 │  🐟 漏网之鱼         → MATCH 兜底               │
 ├─ 第2区：应用策略组（24个，多数含 ★稳定+省流双轨）───────┤
 │  AI: Claude, ChatGPT, Gemini, DeepSeek          │
@@ -257,14 +233,14 @@ sub_ut_b: use: [AirportB1]                           # 保底只剩一个
 │  系统: Microsoft, Apple                          │
 │  金融: 加密货币, PayPal                          │
 │  游戏: Steam                                     │
-├─ 第2-B区：HTTP 精细化策略组（31个）────────────────────┤
-│  24个镜像组 + 5个国内平台组 + 2个兜底组                  │
 ├─ 第3区：地区组（19个）─────────────────────────┤
 │  5主要地区 × 2版本 + 7次要地区 + 全部 + 故转；跨国兜底展开 │
 ├─ 第4区：机场子组（15个）───────────────────────┤
 │  5主要地区 × 3机场 = 15个 url-test 子组          │
 └────────────────────────────────────────────────┘
 ```
+
+当前路由器 v8 共 62 个策略组：4 个出口组、24 个应用组、19 个地区组和 15 个机场子组；另有 42 个 rule-provider、5 个机场 provider。
 
 ### 4.2 设计原则
 
@@ -465,296 +441,57 @@ sub_ut_b: use: [AirportB1]
 - **落地配置**：`configs/v8.yaml`、`configs/rulesets/DIRECT-34-relays.yaml`、`configs/rulesets/DIRECT-34.yaml`
 - **内核说明**：[Route Rules](https://wiki.metacubex.one/en/config/rules/)（`SUB-RULE`）、[sub-rule](https://wiki.metacubex.one/en/config/sub-rule/)
 
-### 7.6 HTTP 扩展指南（v7 新增）
+### 7.6 程序接入与部署
 
-**新增 HTTP 平台组**（与新增 32.x 平台组同步操作）：
+1. 在私有配置副本填写机场订阅、控制器 `secret` 和住宅代理凭据（使用 34.x 时）；保留旧配置用于切回。
+2. 上传并选择当前 v8，使用实际路由器内核执行语法检查；本地语法通过不替代路由器启动检查。
+3. 在 OpenClash 页面统一设置 HTTP `7890`、SOCKS5 `7891`、混合 `7893` 及代理认证，保存并应用。
+4. 将需要按平台分流的程序放在 32.x，填写可从该设备访问的路由器 IP、正确协议/端口和页面中的账号密码。
+5. 确认运行在规则模式；从程序发起新连接，在 Zashboard 核验来源 IP、匹配规则、平台策略链和最终节点。
+6. 检查运行日志无重复监听、认证或规则加载错误，再验证目标平台实际访问；切换平台组后以新连接核对出口。
 
-```yaml
-# 1. 在 proxy-groups 第2区添加 32.x 策略组
-- name: "🎯 NewApp 32.x"
-  type: select
-  proxies: ["🇺🇸 美国★", "🇯🇵 日本★", ...]
+新增平台只需维护 §7.1 的主策略组、规则和 provider，普通代理程序自动复用；无需新增 HTTP 镜像组。
 
-# 2. 在 proxy-groups 第2-B区添加对应 HTTP 策略组
-- name: "🎯 NewApp HTTP"
-  type: select
-  proxies:
-    - "🎯 NewApp 32.x"   # 第1选项：跟随浏览器节点，共享 IP 信誉
-    - "🇺🇸 美国★"
-    - "🇯🇵 日本★"
-    # ... 与其他 HTTP 组相同节点列表
+## 8. 普通代理出口与排错
 
-# 3. 在 sub-rules.http-rules 对应分类位置插入规则
-- RULE-SET,newapp_domain,🎯 NewApp HTTP
+### 8.1 机场流量归属
+
+入口端口不绑定机场。流量由实际出站节点所属的机场统计；最终 DIRECT 不消耗机场代理流量，住宅节点使用住宅服务的流量额度。
+
+例如 32.x 程序访问 ChatGPT，面板将 `🤖 ChatGPT 32.x` 选为日本★，且 `[A] 日本` 可用时，连接可能为：
+
+```text
+HTTP :7890 → 主 rules → ChatGPT 32.x → 日本★ → [A] 日本 → AirportA 的日本节点
 ```
 
-**新增 HTTP 监听端口**：
+此时使用 AirportA 流量。若 `[A] 日本` 失效，下一条连接可能进入 `[C] 日本`，使用 AirportC1 或 AirportC2 中最终节点的流量。地区名或 A/C/B 梯队只能说明选择路径，不能单独确认具体机场。
 
-```yaml
-listeners:
-  - name: http-in
-    type: http
-    port: 7891
-    rule: http-rules
-  - name: http-in-alt
-    type: http
-    port: 7892
-    rule: http-alt-rules     # 绑定另一条子链
-```
+### 8.2 观察方法
 
-## 8. HTTP 精细化代理池设计（v7 新增）
+在 Zashboard 的连接列表找到程序请求，打开详情查看来源 IP、规则、完整代理链和最终节点，再与机场 provider 中的节点对应。若不同机场节点重名，需要结合 provider 归属确认，不能仅凭显示名判断。机场面板流量统计作为计费核对依据，连接流量用于排查单次请求。
 
-### 8.1 32.x 镜像架构
+### 8.3 故障定位
 
-v7 最终设计：HTTP 不使用分类分层。当前共有 31 个 HTTP 组：24 个应用镜像组、5 个国内平台组和 2 个兜底组；24 个镜像组的第一选项引用对应 32.x 策略组，实现节点自动跟随和 IP 信誉共享。
+| 现象 | 检查方向 |
+|------|----------|
+| 连接拒绝 | OpenClash 是否启动、实际监听端口、路由器地址与防火墙可达性、端口占用日志 |
+| 连接超时 | 先确认客户端到入口是否可达，再检查规则集、机场订阅、当前节点与 DNS |
+| HTTP 407 / SOCKS5 认证失败 | 核对 OpenClash 页面启用的账号与实际运行认证，确认客户端发送认证信息 |
+| 协议握手错误 | HTTP 使用 7890，SOCKS5 使用 7891，混合端口 7893 接受两种协议；清除旧 7891 HTTP 配置 |
+| 入口可用但出口不符 | 核验规则模式、实际 sourceIP、匹配规则、平台当前选择及新连接代理链 |
+| 目标站点 403/429 | 入口连通与站点访问分别排查；检查目标站点授权、请求频率、出口和客户端行为，不根据状态码断定唯一原因 |
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│ 浏览器（32.x）                    爬虫（HTTP）                   │
-│                                                                    │
-│  🤖 Claude 32.x                   🤖 !Claude HTTP               │
-│  当前节点: 日本★                  第1选项: Claude 32.x ← 引用     │
-│  出口 IP: 1.2.3.4                 → 同样走日本★ → 出口 1.2.3.4    │
-│                                                                    │
-│  用户浏览器访问 claude.ai          爬虫 curl_cffi 访问 claude.ai   │
-│  → 完成人机验证 → IP 获得信誉     → 共享 IP → 继承信誉 → 通过    │
-└────────────────────────────────────────────────────────────────────┘
-```
+### 8.4 当前方案边界
 
-**为什么不使用分类分层**：
-- 旧设计的 `HTTP-AI`（4 个 AI 平台合并）导致无法独立控制每个平台的节点
-- 32.x 已经有 24 个独立平台组，HTTP 镜像后每个平台可以单独切换节点
-- 爬虫被封时需要按平台粒度排查和切换节点，合并组无法做到
-
-### 8.2 IP 信誉共享机制
-
-这是 v7 HTTP 设计的核心价值：
-
-```
-┌─ 步骤 1：浏览器预热 IP 信誉 ──────────────────────────────────┐
-│  设备(32.x) → Claude 32.x(日本★) → 出口 IP: 1.2.3.4          │
-│  浏览器访问 claude.ai → 完成 Cloudflare 人机验证               │
-│  → Cloudflare 标记 IP 1.2.3.4 为可信                           │
-├─ 步骤 2：爬虫继承信誉 ───────────────────────────────────────┤
-│  爬虫 → HTTP:7891 → !Claude HTTP(第1选项=Claude 32.x)     │
-│  → 同样走日本★ → 出口 IP: 1.2.3.4（与浏览器相同）             │
-│  → Cloudflare 识别为可信 IP → 请求通过                         │
-└─ 注意：TLS 指纹仍需 curl_cffi 处理，仅共享 IP 不够（见 §8.5）┘
-```
-
-**cf_clearance cookie**：Cloudflare 验证人机后下发此 cookie，绑定到 IP + TLS 指纹。浏览器验证后，同 IP 的 curl_cffi 请求可复用该 cookie（但 TLS 指纹不同时仍可能失效）。实践中，共享 IP 的信誉预热效果是主要的，cookie 复用是附加的。
-
-### 8.3 策略组清单（31 个）
-
-| 分类 | HTTP 策略组 | 32.x 默认选项 | 说明 |
-|------|-------------|-------------|------|
-| AI | 🤖 !Claude HTTP | 🤖 Claude 32.x | 严格 IP 检测平台 |
-| AI | 🤖 !ChatGPT HTTP | 🤖 ChatGPT 32.x | 严格 IP 检测平台 |
-| AI | 🔮 Gemini HTTP | 🔮 Gemini 32.x | |
-| AI | 🐋 DeepSeek HTTP | 🐋 DeepSeek 32.x | |
-| 视频 | 📹 YouTube HTTP | 📹 YouTube 32.x | |
-| 视频 | 🎥 Netflix HTTP | 🎥 Netflix 32.x | |
-| 视频 | 🎵 TikTok HTTP | 🎵 TikTok 32.x | |
-| 视频 | 🎧 Spotify HTTP | 🎧 Spotify 32.x | |
-| 视频 | 🏰 Disney+ HTTP | 🏰 Disney+ 32.x | |
-| 社交 | 📲 Telegram HTTP | 📲 Telegram 32.x | |
-| 社交 | 🐦 !Twitter HTTP | 🐦 X 32.x | 严格 IP 检测平台 |
-| 社交 | 📸 !Instagram HTTP | 📸 Instagram 32.x | 严格 IP 检测平台 |
-| 社交 | 👤 !Facebook HTTP | 👤 Facebook 32.x | 严格 IP 检测平台 |
-| 社交 | 🎮 Discord HTTP | 🎮 Discord 32.x | |
-| 开发 | 🍀 Google HTTP | 🍀 Google 32.x | |
-| 开发 | 👨‍💻 GitHub HTTP | 👨‍💻 GitHub 32.x | |
-| 开发 | ☁️ Cloudflare HTTP | ☁️ Cloudflare 32.x | |
-| 开发 | 🖌️ Figma HTTP | 🖌️ Figma 32.x | |
-| 开发 | 📝 Notion HTTP | 📝 Notion 32.x | |
-| 系统 | 🪟 Microsoft HTTP | 🪟 Microsoft 32.x | |
-| 系统 | 🍎 Apple HTTP | 🍎 Apple 32.x | |
-| 金融 | 🪙 加密货币 HTTP | 🪙 加密货币 32.x | |
-| 金融 | 💰 PayPal HTTP | 💰 PayPal 32.x | |
-| 游戏 | 🎮 Steam HTTP | 🎮 Steam 32.x | |
-| 国内 | 📺 Bilibili HTTP / 📱 微博 HTTP / 💡 知乎 HTTP / 🔴 小红书 HTTP / 🎬 豆瓣 HTTP | DIRECT | 可手动切换地区代理 |
-| 兜底 | 🌏 HTTP-国内 | DIRECT | 国内域名/IP，可手动切换地区代理 |
-| 兜底 | 🌍 HTTP-国外 | 🚀 默认出口 32.x | 国外流量兜底 |
-
-**`!` 前缀**：表示该平台有严格 IP 封控（Claude/ChatGPT/Twitter/Instagram/Facebook），切换节点需谨慎。
-
-### 8.4 精细化分流规则链（http-rules）
-
-```yaml
-sub-rules:
-  http-rules:
-    # ── 私有地址直连 ──
-    - RULE-SET,private_domain,DIRECT
-    - RULE-SET,private_ip,DIRECT,no-resolve
-
-    # ── AI ──
-    - RULE-SET,claude_domain,🤖 !Claude HTTP
-    - RULE-SET,openai_domain,🤖 !ChatGPT HTTP
-    - RULE-SET,gemini_domain,🔮 Gemini HTTP
-    - RULE-SET,deepseek_domain,🐋 DeepSeek HTTP
-    - RULE-SET,ai_catchall,🤖 !Claude HTTP
-
-    # ── 视频 ──
-    - RULE-SET,youtube_domain,📹 YouTube HTTP
-    - RULE-SET,netflix_domain,🎥 Netflix HTTP
-    - RULE-SET,netflix_ip,🎥 Netflix HTTP,no-resolve
-    - RULE-SET,tiktok_domain,🎵 TikTok HTTP
-    - RULE-SET,spotify_domain,🎧 Spotify HTTP
-    - RULE-SET,disney_domain,🏰 Disney+ HTTP
-
-    # ── 社交 ──
-    - RULE-SET,telegram_domain,📲 Telegram HTTP
-    - RULE-SET,telegram_ip,📲 Telegram HTTP,no-resolve
-    - RULE-SET,twitter_domain,🐦 !Twitter HTTP
-    - RULE-SET,twitter_ip,🐦 !Twitter HTTP,no-resolve
-    - RULE-SET,instagram_domain,📸 !Instagram HTTP
-    - RULE-SET,facebook_domain,👤 !Facebook HTTP
-    - RULE-SET,facebook_ip,👤 !Facebook HTTP,no-resolve
-    - RULE-SET,discord_domain,🎮 Discord HTTP
-
-    # ── 开发/生产力 ──
-    - RULE-SET,google_domain,🍀 Google HTTP
-    - RULE-SET,google_ip,🍀 Google HTTP,no-resolve
-    - RULE-SET,github_domain,👨‍💻 GitHub HTTP
-    - RULE-SET,cloudflare_domain,☁️ Cloudflare HTTP
-    - RULE-SET,cloudflare_ip,☁️ Cloudflare HTTP,no-resolve
-    - RULE-SET,figma_domain,🖌️ Figma HTTP
-    - RULE-SET,notion_domain,📝 Notion HTTP
-
-    # ── 系统/办公 ──
-    - RULE-SET,onedrive_domain,🪟 Microsoft HTTP
-    - RULE-SET,microsoft_domain,🪟 Microsoft HTTP
-    - RULE-SET,apple_domain,🍎 Apple HTTP
-    - RULE-SET,apple_ip,🍎 Apple HTTP,no-resolve
-
-    # ── 金融/游戏 ──
-    - RULE-SET,crypto_domain,🪙 加密货币 HTTP
-    - RULE-SET,paypal_domain,💰 PayPal HTTP
-    - RULE-SET,steam_domain,🎮 Steam HTTP
-
-    # ── 国内平台 ──
-    - RULE-SET,bilibili_domain,📺 Bilibili HTTP
-    - RULE-SET,weibo_domain,📱 微博 HTTP
-    - RULE-SET,zhihu_domain,💡 知乎 HTTP
-    - RULE-SET,xiaohongshu_domain,🔴 小红书 HTTP
-    - RULE-SET,douban_domain,🎬 豆瓣 HTTP
-
-    # ── 兜底 ──
-    - RULE-SET,cn_domain,🌏 HTTP-国内
-    - RULE-SET,cn_ip,🌏 HTTP-国内,no-resolve
-    - RULE-SET,geolocation_not_cn,🌍 HTTP-国外
-    - MATCH,🌍 HTTP-国外
-```
-
-**与 32.x 主路由规则的关键差异**：
-
-| 差异点 | 32.x 主路由 `rules` | HTTP `http-rules` |
-|--------|---------------------|----------------------|
-| 国内流量 | `cn_domain/cn_ip → DIRECT` | `cn_domain/cn_ip → 🌏 HTTP-国内`（默认 DIRECT，可切地区代理） |
-| 国外兜底 | `geolocation_not_cn → 🚀 默认出口 32.x` | `geolocation_not_cn → 🌍 HTTP-国外`（引用默认出口 32.x） |
-| 最终兜底 | `MATCH → 🐟 漏网之鱼` | `MATCH → 🌍 HTTP-国外`（确保无直连泄漏） |
-| 平台覆盖 | 完全相同 | 完全相同，一一对应 |
-
-### 8.5 Cloudflare TLS 指纹检测与 curl_cffi
-
-Cloudflare 不仅检测 IP，还检测 **TLS Client Hello 指纹**（JA3/JA4）：
-
-| 客户端 | TLS 指纹特征 | Cloudflare 判定 |
-|--------|-------------|----------------|
-| Chrome 浏览器 | Chrome JA3 hash | ✅ 合法浏览器 |
-| curl | 非浏览器 JA3 hash | ❌ 机器人 → 403 |
-| Python requests | 非浏览器 JA3 hash | ❌ 机器人 → 403 |
-| **curl_cffi** | **Chrome JA3 hash**（`impersonate="chrome124"`） | ✅ **模拟浏览器指纹，通过** |
-
-这就是为什么**仅共享 IP 不够**：浏览器访问 Claude 通过，但用标准 curl 走相同节点仍被 403，因为 TLS 指纹暴露了爬虫身份。
-
-**生产环境必须使用 curl_cffi**：
-
-```python
-from curl_cffi import requests
-
-response = requests.get(
-    "https://claude.ai/api/...",
-    impersonate="chrome124",   # 模拟 Chrome TLS 指纹
-    proxies={"https": "http://crawler1:password@192.168.31.1:7891"}
-)
-```
-
-### 8.6 IP 信誉预热流程
-
-新节点或切换节点后，IP 信誉为空，爬虫请求大概率被拦截。需预热：
-
-```
-1. 在 32.x 策略组中选好节点（如 日本★）
-2. 用浏览器访问目标站点（如 claude.ai）
-3. 如遇 Cloudflare 人机验证，手动完成
-4. 此时该节点 IP 已被目标站点标记为可信
-5. 爬虫通过 HTTP 走同一节点 → 继承信誉 → 请求通过
-```
-
-**何时需要预热**：
-- 切换节点后（新 IP 无信誉）
-- 爬虫突然大量 403（IP 信誉衰减或被封）
-- 首次配置 HTTP 时
-
-### 8.7 调试流程
-
-```
-爬虫返回 403
-├─ 用浏览器(32.x)访问同一网站
-│  ├─ 浏览器正常 → HTTP 403 → TLS 指纹问题
-│  │  → 确认爬虫使用 curl_cffi + impersonate="chrome124"
-│  │
-│  └─ 浏览器也 403 → IP 被封
-│     → 在 32.x 面板切换节点
-│     → 浏览器验证新节点是否可用
-│     → 浏览器能开后，爬虫走同一节点
-```
-
-### 8.8 v6→v7 兼容性证明
-
-v7 对 v6 的路由规则和子规则**零修改**，仅新增 HTTP 相关配置：
-
-| 对比项 | v6 | v7 | 变化 |
-|--------|----|----|------|
-| 策略组 | 59 个 | 90 个 | +31 HTTP 组，原有 0 修改 |
-| 路由规则 | 43 条 | 43 条 | 完全一致 |
-| 子规则 | residential34 | +http-rules | residential34 未动 |
-| 规则集 | 42 个 | 51 个 | HTTP 增加 5 个国内平台规则集，并保留 4 个已定义未使用的规则集 |
-| DNS | — | — | 完全一致 |
-| 机场订阅 | 5 个 | 5 个 | 完全一致 |
-| 静态节点 | 1 个 | 1 个 | 完全一致 |
-
-**隔离机制**：HTTP 端口 7891 通过 `listeners.rule: http-rules` 绑定到独立子规则链，流量不经过主路由 `rules`。HTTP 策略组引用 32.x 组和地区组，但 32.x 组不会反向引用 HTTP 组——引用关系是单向的，HTTP 跟随 32.x 的节点选择，不会干扰 32.x。
-
-### 8.9 防封控最佳实践
-
-**节点选择**：
-
-- 默认使用第 1 选项（引用 32.x 组），自动跟随浏览器节点，共享 IP 信誉
-- 如爬虫需用不同节点（如浏览器用日本★、爬虫用美国★），在 HTTP 组中手动切换到其他选项
-
-**TLS 指纹**：
-
-- 生产环境必须使用 curl_cffi + `impersonate="chrome124"`
-- 标准 curl 和 Python requests 会暴露非浏览器 TLS 指纹，被 Cloudflare 识别为机器人
-
-**IP 信誉预热**：
-
-- 新节点或切换节点后，先用浏览器访问目标站点完成人机验证
-- 预热后的 IP 信誉可显著降低爬虫 403 概率
-
-**故障排查**：
-
-- 大量 403 → 检查 IP 是否被封（浏览器验证）→ 换节点 + 预热
-- 偶发 403 → 可能是 Cloudflare 临时策略，等待或预热即可
-- 持续 403 + 浏览器正常 → 检查 TLS 指纹（确认使用 curl_cffi）
+当前 v8 已移除 v7 的 crawler listener、31 个 HTTP 专用组、`http-rules` 及 9 个 HTTP 专用 rule-provider。主 `rules`、住宅白名单子链、机场梯队、DNS 和地区故障转移沿用原设计。代理接入不承诺目标平台返回 200，也不承诺浏览器认证状态能由其他程序继承。
 
 ## 9. 迭代历史
+
+以下 v7 独立 HTTP 方案仅描述历史配置，当前 v8 使用 §1.1 和 §2.5 的普通入口。
 
 | 版本 | 日期 | 核心变更 |
 |------|------|---------|
 | v5 | 2026-03-xx | 5 机场阶梯式分层架构，双轨(★/省流)策略组 |
 | v6 | 2026-04-12 | 住宅网段白名单（SUB-RULE + DIRECT-34 relays/domain 分文件），v6 住宅 IP 出口 |
-| v7 | 2026-05-02 | HTTP 入站（listeners + rule 绑定 + 多用户认证），24 个平台镜像组、5 个国内平台组和 2 个兜底组，镜像组引用 32.x 组共享节点/IP 信誉 |
-| v8 | 2026-07-30 | 不含香港的跨国兜底直接展开到主要国家顶层组，避免新增 `fallback → fallback` 层级；新增马来西亚/荷兰/越南；健康检查严格要求 204；地区 fallback 周期调整为 60 秒 |
+| v7 | 2026-05-02 | HTTP 入站（listeners + rule 绑定 + 多用户认证），24 个平台镜像组、5 个国内平台组和 2 个兜底组，镜像组引用 32.x 组跟随节点（历史功能，当前已移除） |
+| v8 | 2026-10-02 | 不含香港的跨国兜底直接展开到主要国家顶层组，避免新增 `fallback → fallback` 层级；新增马来西亚/荷兰/越南；健康检查严格要求 204；地区 fallback 周期调整为 60 秒；移除独立 HTTP 池，程序复用 OpenClash 普通入口及主规则 |
