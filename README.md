@@ -63,7 +63,7 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
 
 - 12 个可选地区：香港、日本、新加坡、美国、台湾 + 英国、德国、法国、韩国、马来西亚、荷兰、越南
 - DNS 防泄漏：fake-ip、国内走阿里/腾讯 DoH、海外走 Google/Cloudflare DoH、关闭 IPv6
-- 可选 HTTP 7891 入站：带账号密码，给爬虫/自动化任务用独立分流链
+- 普通代理入口：HTTP 7890、SOCKS5 7891、混合代理 7893；认证在 OpenClash 页面管理，程序与同网段设备共用分流规则
 - 自定义直连域名放在独立规则文件，改完推送 GitHub、更新 rule-provider 即生效
 
 > `configs/rulesets/` 和 `client/rulesets/DIRECT.yaml` 里是**作者家庭网络的示例条目**，使用前请替换为你自己的域名、中继端口与 IP。
@@ -76,9 +76,9 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
 2. 在副本里填写：
    - `proxy-providers`：5 个通用槽位（AirportA / AirportB1 / AirportB2 / AirportC1 / AirportC2），把你的订阅 URL 填进 `YOUR_TOKEN` 位置；机场不足 5 个就删掉多余槽位，并同步移除锚点 `use:` 里的引用；
    - `secret`：控制面板（9090）访问密钥；
-   - `listeners`：HTTP 7891 三个用户密码（`★填写crawler密码★` 位置）；
    - 使用 34.x 才需要：住宅代理的地址、端口、用户名、密码（`YOUR_RESIDENTIAL_*` 位置）；
 3. 把 `rulesets/` 里的示例域名、IP 换成你自己的。
+4. 在 OpenClash 页面设置 HTTP 7890、SOCKS5 7891、混合代理 7893，并启用账号密码认证。模板不包含真实代理凭据；直接运行 Mihomo 时，需要在私有副本中自行配置 `authentication`。
 
 ### 电脑 / Android 单机版
 
@@ -109,6 +109,15 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
    - 浏览器打开 `http://路由器IP:9090/ui`，用 `secret` 连接面板；
    - 32.x 设备国内外网站都正常；33.x 全局代理不影响 NAS、打印机等局域网设备；
    - 有条件时做一次断线演练，确认跨国接管生效。
+   - 核对 OpenClash 实际加载配置中的端口与认证；从 32.x 设备分别测试 HTTP 7890、SOCKS5 7891、混合代理 7893，确认正确账号可连接、错误账号被拒绝。
+
+### 程序如何使用普通代理入口
+
+需要按平台分流的程序部署在 `192.168.32.x` 网段，代理地址填写路由器在该网段的 IP，HTTP 使用 7890，SOCKS5 使用 7891，或通过混合端口 7893 使用对应协议。账号密码使用 OpenClash 页面中启用的认证信息。
+
+OpenClash 使用规则模式时，普通入口按连接的源 IP 分流：31.x 直连、32.x 按平台分流、33.x 使用全局出口、34.x 按住宅白名单分流。路由器地址或代理端口不会把 31.x 设备变成 32.x 设备；需要在面板连接详情中核对实际源 IP。
+
+32.x 程序访问 ChatGPT、YouTube 等目标时使用现有平台策略组。最终节点属于哪个机场，就消耗哪个机场的流量；地区故障转移后实际机场可能变化。打开 Zashboard 的连接详情，查看命中规则、代理链和最终节点。连接成功只代表代理入口可用，目标网站是否可访问仍需实际验证。
 
 ## 日常使用
 
@@ -126,7 +135,7 @@ ChatGPT、Claude、Gemini、YouTube、Netflix、Telegram、GitHub、Google、Ste
 ## 安全提醒
 
 - 真实订阅、Token、住宅代理凭据只写进 `*.local.yaml` 等被忽略的私有文件，不进公开仓库；
-- `external-controller` 设置强 `secret`；7890/9090/1053/7891 端口只允许可信内网访问；
+- `external-controller` 设置强 `secret`；7890/7891/7893/9090/1053 端口只允许可信内网访问；
 - 不要把 LuCI、SSH、控制面板或代理入口暴露到公网；
 - 升级前保留旧配置和 OpenClash 备份。
 
@@ -140,7 +149,7 @@ docs/               # REQUIREMENTS / DESIGN / TECHNICAL 详细文档
 
 需要理解设计或继续扩展时，看 [需求与验收标准](docs/REQUIREMENTS.md)、[方案设计](docs/DESIGN.md)、[技术规范](docs/TECHNICAL.md)。
 
-v8 路由器版含 93 个策略组、51 个 rule-provider、12 个地区、5 个机场 provider，已在 Mihomo v1.19.28 上测试通过。
+v8 路由器版含 62 个策略组、42 个 rule-provider、12 个地区、5 个机场 provider。部署前需完成内核语法检查及路由器上的端口、认证与分流验证。
 
 ## 开源与贡献
 
