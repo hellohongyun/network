@@ -2,7 +2,7 @@
 
 > 项目：Mihomo 多网段精细分流配置  
 > 版本：v8
-> 最后更新：2026-10-02
+> 最后更新：2026-07-30
 
 ---
 
@@ -31,7 +31,8 @@
 | 规则集 | https://wiki.metacubex.one/config/rule-providers/ | behavior/format/interval 等 |
 | 代理集 | https://wiki.metacubex.one/config/proxy-providers/ | health-check/exclude-filter/override 等 |
 | 入站配置 | https://wiki.metacubex.one/config/inbound/ | TUN/sniffer 等 |
-| 普通入站端口 | https://wiki.metacubex.one/config/inbound/port/ | HTTP/SOCKS5/mixed 端口；认证见全局配置 |
+| 入站监听 | https://wiki.metacubex.one/config/inbound/listeners/http | HTTP listeners 配置（v7） |
+| 负载均衡 | https://wiki.metacubex.one/config/proxy-groups/load-balance | load-balance 策略组（备用参考，v7 HTTP 未使用） |
 | 完整示例 | https://github.com/MetaCubeX/mihomo/blob/Meta/docs/config.yaml | 官方示例配置 |
 
 ### 2.2 客户端衍生配置
@@ -41,7 +42,7 @@
 - 保留 24 个应用组、19 个地区组、15 个机场子组、默认出口和漏网之鱼，共 60 个策略组。
 - 保留 5 个 proxy-provider、日常分流所需的 40 个 rule-provider，以及地区 fallback 和机场子组的原健康检查参数。
 - 自定义直连目标由 `direct_client` 引用 `client/rulesets/DIRECT.yaml`，与 `configs/rulesets/` 下的路由器规则分开维护。
-- 不包含家庭源网段入口、住宅代理、住宅子规则和路由器共享端口；仅处理本机流量。
+- 删除全部家庭网段入口、住宅代理、住宅子规则、HTTP 7891 listener、HTTP 专用策略组及其专用规则集。
 - TUN 保留 `auto-route`、`auto-detect-interface` 和 DNS 劫持，删除 Linux/OpenWrt 导向的 `auto-redirect`。
 - 混合代理、控制器和 DNS 只监听本机；内置外部面板下载配置不进入客户端模板。
 - 需要较新的 Mihomo 内核支持 `.mrs`、provider 指纹覆盖、`expected-status` 和 `include-all-providers`；传统 Clash Premium 或非 Mihomo 客户端不在兼容范围内。
@@ -66,40 +67,41 @@
 
 ## 3. 规则集 URL 清单
 
-以下为当前配置采用的路径；本轮没有逐个重新请求 URL，部署时需验证下载成功且内容可被内核加载。旧文档的 HTTP 200 记录不能作为当前可用性保证。当前路由器模板共 42 个 rule-provider。
-
 ### 3.1 MetaCubeX geosite（behavior: domain, format: mrs）
 
 URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/{name}.mrs`
 
 | 配置名 | name | 验证状态 |
 |--------|------|---------|
-| openai_domain | openai | 部署时验证 |
-| deepseek_domain | deepseek | 部署时验证 |
-| ai_catchall | category-ai-!cn | 部署时验证 |
-| youtube_domain | youtube | 部署时验证 |
-| netflix_domain | netflix | 部署时验证 |
-| tiktok_domain | tiktok | 部署时验证 |
-| spotify_domain | spotify | 部署时验证 |
-| disney_domain | disney | 部署时验证 |
-| telegram_domain | telegram | 部署时验证 |
-| twitter_domain | twitter | 部署时验证 |
-| instagram_domain | instagram | 部署时验证 |
-| facebook_domain | facebook | 部署时验证 |
-| discord_domain | discord | 部署时验证 |
-| google_domain | google | 部署时验证 |
-| github_domain | github | 部署时验证 |
-| cloudflare_domain | cloudflare | 部署时验证 |
-| figma_domain | figma | 部署时验证 |
-| notion_domain | notion | 部署时验证 |
-| onedrive_domain | onedrive | 部署时验证 |
-| microsoft_domain | microsoft | 部署时验证 |
-| apple_domain | apple | 部署时验证 |
-| steam_domain | steam | 部署时验证 |
-| paypal_domain | paypal | 部署时验证 |
-| private_domain | private | 部署时验证 |
-| geolocation_not_cn | geolocation-!cn | 部署时验证 |
-| cn_domain | cn | 部署时验证 |
+| openai_domain | openai | ✅ 200 |
+| deepseek_domain | deepseek | ✅ 200 |
+| ai_catchall | category-ai-!cn | ✅ 200 |
+| youtube_domain | youtube | ✅ 200 |
+| netflix_domain | netflix | ✅ 200 |
+| tiktok_domain | tiktok | ✅ 200 |
+| spotify_domain | spotify | ✅ 200 |
+| disney_domain | disney | ✅ 200 |
+| telegram_domain | telegram | ✅ 200 |
+| twitter_domain | twitter | ✅ 200 |
+| instagram_domain | instagram | ✅ 200 |
+| facebook_domain | facebook | ✅ 200 |
+| discord_domain | discord | ✅ 200 |
+| google_domain | google | ✅ 200 |
+| github_domain | github | ✅ 200 |
+| cloudflare_domain | cloudflare | ✅ 200 |
+| figma_domain | figma | ✅ 200 |
+| notion_domain | notion | ✅ 200 |
+| onedrive_domain | onedrive | ✅ 200 |
+| microsoft_domain | microsoft | ✅ 200 |
+| apple_domain | apple | ✅ 200 |
+| steam_domain | steam | ✅ 200 |
+| paypal_domain | paypal | ✅ 200 |
+| private_domain | private | ✅ 200 |
+| geolocation_not_cn | geolocation-!cn | ✅ 200 |
+| cn_domain | cn | ✅ 200 |
+| weibo_domain | sina | ✅ 200（v8 改用；覆盖微博及新浪体系） |
+| amazon_domain | amazon | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
+| bing_domain | bing | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
 
 ### 3.2 MetaCubeX geoip（behavior: ipcidr, format: mrs）
 
@@ -107,14 +109,14 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 
 | 配置名 | name | 验证状态 |
 |--------|------|---------|
-| netflix_ip | netflix | 部署时验证 |
-| telegram_ip | telegram | 部署时验证 |
-| twitter_ip | twitter | 部署时验证 |
-| facebook_ip | facebook | 部署时验证 |
-| google_ip | google | 部署时验证 |
-| cloudflare_ip | cloudflare | 部署时验证 |
-| private_ip | private | 部署时验证 |
-| cn_ip | cn | 部署时验证 |
+| netflix_ip | netflix | ✅ 200 |
+| telegram_ip | telegram | ✅ 200 |
+| twitter_ip | twitter | ✅ 200 |
+| facebook_ip | facebook | ✅ 200 |
+| google_ip | google | ✅ 200 |
+| cloudflare_ip | cloudflare | ✅ 200 |
+| private_ip | private | ✅ 200 |
+| cn_ip | cn | ✅ 200 |
 
 特殊：`apple_ip` 使用 **geo-lite** 路径（完整版无此文件）：
 `https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo-lite/geoip/apple.mrs`
@@ -123,24 +125,26 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 
 | 配置名 | URL | 格式 | 验证状态 |
 |--------|-----|------|---------|
-| claude_domain | `.../Clash/Claude/Claude.yaml` | yaml | 部署时验证 |
-| gemini_domain | `.../Clash/Gemini/Gemini.yaml` | yaml | 部署时验证 |
-| crypto_domain | `.../Clash/Cryptocurrency/Cryptocurrency.list` | text | 部署时验证 |
+| claude_domain | `.../Clash/Claude/Claude.yaml` | yaml | ✅ 200 |
+| gemini_domain | `.../Clash/Gemini/Gemini.yaml` | yaml | ✅ 200 |
+| crypto_domain | `.../Clash/Cryptocurrency/Cryptocurrency.list` | text | ✅ 200 |
+| ebay_domain | `.../Clash/eBay/eBay.yaml` | yaml | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
+| shopify_domain | `.../Clash/Shopify/Shopify.yaml` | yaml | ✅ 200（v7 HTTP，rule-providers 中定义但未使用） |
 
-### 3.4 历史失效路径（当前不采用）
+### 3.4 已弃用/404 的 URL（避免使用）
 
-| URL | 历史记录 | 当前处理 |
+| URL | 状态 | 替代方案 |
 |-----|------|---------|
-| `blackmatrix7/.../DeepSeek/DeepSeek.yaml` | 曾返回 404 | MetaCubeX `geosite/deepseek.mrs` |
-| `blackmatrix7/.../DeepSeek/DeepSeek.list` | 曾返回 404 | 同上 |
-| `MetaCubeX/geo/geoip/apple.mrs` | 曾返回 404 | 使用 `geo-lite/geoip/apple.mrs` |
-| `MetaCubeX/meta/geo/geosite/weibo.mrs` | 曾返回 404 | 当前 v8 已移除 HTTP 专用微博 provider，不需替代 |
+| `blackmatrix7/.../DeepSeek/DeepSeek.yaml` | ❌ 404 | MetaCubeX `geosite/deepseek.mrs` |
+| `blackmatrix7/.../DeepSeek/DeepSeek.list` | ❌ 404 | 同上 |
+| `MetaCubeX/geo/geoip/apple.mrs` | ❌ 404 | 使用 `geo-lite/geoip/apple.mrs` |
+| `MetaCubeX/meta/geo/geosite/weibo.mrs` | ❌ 404 | 使用 `geosite/sina.mrs`，保持 domain + mrs |
 
 ### 3.5 其他
 
 | 配置名 | URL | 验证状态 |
 |--------|-----|---------|
-| fakeipfilter | `wwqgtxx/clash-rules/release/fakeip-filter.mrs` | 部署时验证 |
+| fakeipfilter | `wwqgtxx/clash-rules/release/fakeip-filter.mrs` | ✅ 200 |
 
 ### 3.6 本仓 `configs/rulesets`（v6）
 
@@ -187,6 +191,8 @@ URL 模式：`https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/ge
 | 锚点名 | `小写_缩写` | `sub_ut_c`, `region_eco` |
 | 本仓 rulesets 文件名 | `策略简写-网段.yaml`；住宅白名单可拆 `-relays` | `DIRECT-32.yaml`, `DIRECT-34-relays.yaml`, `DIRECT-34.yaml` |
 | 本仓 rulesets provider 键 | `小写_网段数字`；relays 加后缀 | `direct_32`, `direct_34_relays`, `direct_34` |
+| HTTP 策略组（v7） | `emoji + 平台名 + HTTP`（严格封控平台加 `!` 前缀） | `🤖 !Claude HTTP`, `📹 YouTube HTTP` |
+| HTTP listener 名（v7） | `小写-短横线` | `http-in` |
 
 ### 4.3 锚点使用规范
 
@@ -208,7 +214,7 @@ sub_ut_c: &sub_ut_c
 
 ### 4.4 proxy-providers 客户端指纹
 
-v8 不使用全局 `global-client-fingerprint`，在每个订阅提供器中通过 `override` 下发 Chrome 指纹：
+最新版 Mihomo 已移除全局 `global-client-fingerprint`。v8 在每个订阅提供器中通过 `override` 下发 Chrome 指纹：
 
 ```yaml
 AirportC1:
@@ -218,7 +224,7 @@ AirportC1:
     client-fingerprint: chrome
 ```
 
-新增订阅提供器时同步添加该 `override`。它只设置 Mihomo 代理节点的客户端指纹，不改变应用自身的请求或认证行为。
+新增订阅提供器时必须同步添加该 `override`。它只设置 Mihomo 代理节点的客户端指纹，不能代替爬虫自身的 curl_cffi 浏览器指纹模拟。
 
 ### 4.5 rule-providers 锚点
 
@@ -249,25 +255,95 @@ claude_domain:
 (?=.*(港|HK|(?i)Hong))^((?!(台|日|韩|新|深|美|英|法|德|澳|韓)).)*$
 ```
 
-### 4.7 普通代理入口配置规范
+### 4.7 HTTP 配置规范（v7）
 
-路由器 v8 使用全局普通端口：
+v7 引入 HTTP 入站监听，用于爬虫/批量抓取场景。当前有 24 个平台镜像组、5 个国内平台组和 2 个兜底组；镜像组第 1 选项引用对应 32.x 组，实现节点跟随和 IP 信誉共享。
+
+#### 4.6.1 listeners 配置
+
+在 `四-B` 段配置 HTTP 入站：
 
 ```yaml
-port: 7890
-socks-port: 7891
-mixed-port: 7893
-allow-lan: true
-mode: rule
+listeners:
+  - name: http-in
+    type: http
+    port: 7891          # HTTP 独立监听端口
+    listen: 0.0.0.0
+    rule: http-rules  # 绑定到专用 sub-rules
+    users:
+      - username: crawler1
+        password: ★填写密码★
 ```
 
-HTTP 客户端使用 `http://路由器IP:7890`；SOCKS5 客户端使用 `socks5://路由器IP:7891`，支持由代理解析域名的客户端可使用 `socks5h://`；混合 `7893` 接受 HTTP 和 SOCKS5。`http://` 入口可通过 CONNECT 代理 HTTPS 目标，不代表入口自身使用 TLS。
+关键点：
+- `type: http` 表示 HTTP 协议入站
+- `rule` 字段绑定独立 sub-rules 子链，HTTP 流量不经过主路由 `rules`
+- `users` 配置用户认证，未认证连接被拒绝
+- 不同端口可绑定不同 rule 链，实现多通道隔离
 
-代理用户名/密码在 OpenClash 的 SOCKS5/HTTP(S) 认证页面统一设置并启用，保存后应用配置。模板不写入真实凭据，不再定义 crawler 用户、`listeners.rule` 或 `http-rules`。代理认证与 9090 控制器 `secret` 分开管理。
+#### 4.6.2 HTTP 策略组（select，引用 32.x 组）
 
-普通入口在规则模式下进入主 `rules`，实际来源 IP 决定网段规则：31.x 直连、32.x 继续按平台匹配、33.x 全局代理、34.x 住宅白名单。需要按平台分流的程序放在 32.x，部署后核验内核连接详情中的 sourceIP；路由器本机、容器、中继及 NAT 请求不保证保留原始设备来源。
+每个 HTTP 策略组使用 `select` 类型，第一选项引用对应 32.x 策略组：
 
-只允许可信内网访问共享入口。OpenClash 可能覆写上传模板，实际运行端口、认证和规则模式须在保存/应用后核验；模板语法测试不验证页面覆写后的状态。
+```yaml
+- name: "🤖 !Claude HTTP"
+  type: select
+  proxies:
+    - "🤖 Claude 32.x"   # 第1选项：引用 32.x 组，自动跟随浏览器节点
+    - "🇺🇸 美国★"         # 第2+选项：手动指定节点（★稳定/省流）
+    - "🇯🇵 日本★"
+    - "🇸🇬 新加坡★"
+    - "🇭🇰 香港★"
+    - "🇹🇼 台湾★"
+    - "🇺🇸 美国"
+    - "🇯🇵 日本"
+    - "🇸🇬 新加坡"
+    - "🇭🇰 香港"
+    - "🇬🇧 英国"
+    - "🇩🇪 德国"
+```
+
+**IP 信誉共享原理**：浏览器在 32.x 中选择了日本★节点 → 出口 IP 为 1.2.3.4 → 浏览器完成人机验证 → IP 获得信誉 → HTTP 组第 1 选项引用同一 32.x 组 → 爬虫也走日本★ → 出口 IP 同为 1.2.3.4 → 继承 IP 信誉。
+
+**兜底组**：
+```yaml
+- name: "🌏 HTTP-国内"
+  type: select
+  proxies: [DIRECT, 香港★, 香港, 日本★, 日本, 新加坡★, 新加坡, 台湾★, 台湾]
+
+- name: "🌍 HTTP-国外"
+  type: select
+  proxies: [🚀 默认出口 32.x, 美国★, 日本★, 新加坡★, 香港★, 台湾★, 美国, 日本, 新加坡, 香港, 英国, 德国]
+```
+
+#### 4.6.3 sub-rules 子规则配合
+
+HTTP 入站绑定独立 `http-rules` 子链，与住宅网段的 `residential34` 子链并列：
+
+```yaml
+sub-rules:
+  residential34:                              # v6 已有子链
+    - RULE-SET,direct_34_relays,DIRECT
+    - RULE-SET,direct_34,DIRECT
+    - MATCH,🏠 住宅IP 34.x
+  http-rules:                               # v7 新增子链
+    - RULE-SET,private_domain,DIRECT
+    - RULE-SET,claude_domain,🤖 !Claude HTTP
+    - RULE-SET,onedrive_domain,🪟 Microsoft HTTP
+    # ... 24 个镜像平台 + 5 个国内平台 + 2 个兜底（见 DESIGN.md §8.4）
+    - MATCH,🌍 HTTP-国外
+```
+
+#### 4.6.4 HTTP 策略组命名规范
+
+| 类型 | 规范 | 示例 |
+|------|------|------|
+| HTTP 应用组 | `emoji + 平台名 + HTTP` | `🤖 !Claude HTTP` |
+| HTTP 兜底组 | `emoji + HTTP + 用途` | `🌍 HTTP-国外` |
+| HTTP listener 名 | `小写-短横线` | `http-in` |
+| 严格封控平台 | `!` 前缀 + 平台名 + HTTP | `🤖 !Claude HTTP` |
+
+HTTP 策略组使用的规则集（claude_domain、openai_domain 等）复用 32.x 已有规则集，不单独维护。
 
 ## 5. 常见问题排查
 
@@ -299,32 +375,48 @@ proxy: AirportC1   # 替代原来的 proxy: DIRECT
 
 v8 的顶层主要地区组在同国 A/C/B 全部不可用后，继续遍历直接展开的跨国叶子组。公共顺序为日本→美国→新加坡→台湾→马来西亚→韩国→荷兰→英国→德国→法国→越南，不包含香港。配置不创建独立 `🛟 跨国最终兜底` 组，避免在 v7 既有的 `fallback → url-test` 结构上再增加一层 `fallback → fallback`；顶层国家组也不得互相引用。
 
-### 5.4 普通代理入口调试
+### 5.4 HTTP 调试
 
-从 32.x 客户端执行测试，替换路由器地址与已启用的账号名。以下 curl 命令会提示输入密码，示例不把密码写入 URL：
+**连通性验证**：
 
-```sh
-# HTTP 7890
-curl --connect-timeout 10 --max-time 30 --proxy http://192.168.32.1:7890 --proxy-user 'OPENCLASH_USERNAME' https://www.gstatic.com/generate_204
+```bash
+# 基础连通测试
+curl -x http://crawler1:password@192.168.31.1:7891 http://httpbin.org/ip
 
-# SOCKS5 7891（由代理解析目标域名）
-curl --connect-timeout 10 --max-time 30 --proxy socks5h://192.168.32.1:7891 --proxy-user 'OPENCLASH_USERNAME' https://www.gstatic.com/generate_204
-
-# 混合 7893 的 HTTP 接入
-curl --connect-timeout 10 --max-time 30 --proxy http://192.168.32.1:7893 --proxy-user 'OPENCLASH_USERNAME' https://www.gstatic.com/generate_204
+# 如果返回 IP，说明 HTTP 通道正常
+# 如果连接失败，检查 listeners 配置和用户认证
 ```
 
-Windows PowerShell 中使用 `curl.exe`，避免旧版本 PowerShell 的 `curl` 别名。示例地址假设路由器 32.x 接口为 `192.168.32.1`，以实际可达地址为准。检测目标成功时返回 204、无正文；可加 `--include` 观察状态。它验证当前请求连通，不证明其他目标网站可访问。
+**目标平台返回 403**：
 
-排查顺序：
+如果基础连通正常但目标平台（如 claude.ai）返回 403，是 TLS 指纹问题，不是 IP 问题。必须使用 curl_cffi：
 
-1. **入口**：连接拒绝或超时时，检查 OpenClash 是否运行、客户端到路由器可达性、实际监听端口与端口占用日志。SOCKS5 7891 不接受历史 HTTP 7891 的协议配置。
-2. **认证**：HTTP 407 或 SOCKS5 认证失败时，检查页面中的账号是否启用、密码是否正确，以及保存/应用后实际运行配置是否包含认证；分别测试有效、错误与缺失凭据。
-3. **规则**：在 Zashboard 连接详情核验 sourceIP、匹配规则与代理链。32.x 才按预期复用平台组；31.x 会优先直连，33.x/34.x 会优先走自己的来源规则。
-4. **节点**：追踪到最终节点与机场 provider，确认使用哪家机场流量。切换策略或发生故障转移后，重建连接再观察；入口端口不绑定机场。
-5. **目标**：入口与节点连通后再测试业务目标。403/429 可能涉及目标站点授权、访问频率、出口或客户端行为，不能仅凭状态码断定 TLS 指纹或 IP 原因。
+```python
+from curl_cffi import requests
 
-同一平台组可服务浏览器和程序，但实际节点受测速与故障切换影响。代理配置不保证浏览器人机验证或认证状态可被程序复用，也不承诺目标平台返回 200。
+# 使用 curl_cffi 模拟 Chrome TLS 指纹
+response = requests.get(
+    "https://claude.ai",
+    impersonate="chrome124",
+    proxies={"https": "http://crawler1:password@192.168.31.1:7891"}
+)
+print(response.status_code)  # 200（而非标准 curl 的 403）
+```
+
+**调试决策树**：
+
+```
+爬虫 403
+├─ 用浏览器(32.x)访问同一网站
+│  ├─ 浏览器正常 → HTTP 403 → TLS 指纹问题
+│  │  → 确认使用 curl_cffi + impersonate="chrome124"
+│  └─ 浏览器也 403 → IP 被封
+│     → 在面板切换 32.x 节点
+│     → 浏览器验证新节点可用
+│     → 爬虫走同一节点（第1选项自动跟随）
+```
+
+**IP 信誉预热**：新节点或切换后，先用浏览器访问目标站点并完成人机验证，再让爬虫使用同一节点。
 
 ### 5.5 健康检查通过但网站不通
 
@@ -335,28 +427,33 @@ v8 所有 gstatic 检测增加 `expected-status: 204`，避免劫持页或错误
 
 ## 6. 版本变更日志
 
-当前公共模板在 2026-10-02 用官方 Mihomo v1.19.32 Windows compatible 内核执行配置语法检查，结果为 `test is successful`。该结果仅覆盖本地模板加载；真实 OpenClash 端口、认证、源网段分流和目标网络连通仍需部署后验证。
-
-### v8（2026-10-02）
+### v8（2026-07-30）
 
 | 变更项 | 说明 |
 |--------|------|
 | 跨国最终兜底 | 跨国叶子组直接展开到各主要国家顶层 fallback，同国 A/C/B 全失效后跨国家恢复；不含香港，也不显示独立卡片 |
-| fallback 兼容性 | 不新增 `fallback → fallback` 层级，降低 Mihomo 嵌套代理组已知运行时风险；保留已长期使用的顶层 `fallback → url-test` 结构；proxy-groups 总数 62、地区部分 19 |
+| fallback 兼容性 | 不新增 `fallback → fallback` 层级，降低 Mihomo 嵌套代理组已知运行时风险；保留已长期使用的顶层 `fallback → url-test` 结构；proxy-groups 总数 93、地区部分 19 |
 | 新增地区 | 马来西亚、荷兰、越南使用全机场 `url-test` |
 | 健康判定 | 所有 gstatic 检测增加 `expected-status: 204`；主要地区顶层 fallback 为 60s、`max-failed-times: 2` |
 | Mihomo 指纹兼容 | 移除已废弃的 `global-client-fingerprint`，改由 5 个 proxy-provider 的 `override.client-fingerprint: chrome` 下发 |
+| 微博规则 | 失效的 `weibo.mrs` 替换为 MetaCubeX `sina.mrs` |
 | 配置主文件 | `configs/v8.yaml`；`configs/v7.yaml` 保留为历史版本 |
-| 普通入口 | HTTP 7890、SOCKS5 7891、混合 7893；账号统一在 OpenClash 页面管理 |
-| 移除独立 HTTP 池 | 删除 crawler listener、31 个 HTTP 专用组、`http-rules` 及 9 个专用 rule-provider；当前保留 42 个 rule-provider |
-| 程序分流 | 规则模式按实际源网段匹配，32.x 程序复用平台组；最终节点决定机场流量归属 |
 | 单设备衍生配置 | 新增 `client/v8.yaml` 与 `client/rulesets/DIRECT.yaml`；保留日常应用分流和故障转移，删除所有路由器入口、住宅与 HTTP 入站 |
 
-### v7（2026-05-02，历史）
+### v7（2026-05-02）
 
-v7 曾提供独立 HTTP 7891 listener、多用户认证、31 个 HTTP 专用策略组与 `http-rules` 子链；24 个平台镜像组通过引用 32.x 组跟随选择。历史配置保存在 `configs/v7.yaml`。
-
-此方案不适用于当前 v8。当前 7891 为 SOCKS5，请使用 §4.7 的端口和 OpenClash 页面认证；历史浏览器信誉继承、TLS 模拟与站点返回 200 的假设不作为当前设计或验收标准。
+| 变更项 | 说明 |
+|--------|------|
+| HTTP 入站监听 | 新增 `listeners` 段，HTTP 独立端口 7891，多用户认证（crawler1/2/3），绑定 `http-rules` 子链 |
+| HTTP 策略组 | 24 个平台镜像组、5 个国内平台组和 2 个兜底组；镜像组第 1 选项引用对应 32.x 组 |
+| http-rules 规则链 | 独立子链，覆盖全部 24 个平台 + 国内/国外兜底，复用现有 rule-providers |
+| TLS 指纹检测 | Cloudflare 通过 JA3/JA4 检测非浏览器 TLS 指纹；爬虫需使用 curl_cffi + `impersonate="chrome124"` |
+| IP 信誉预热 | 新节点/切换节点后，浏览器先访问目标站完成人机验证，爬虫再走同一节点继承信誉 |
+| 参考资源 | §2.1 新增 listeners（HTTP）文档链接 |
+| 编码规范 | §4.2 新增 HTTP 策略组命名规范（`emoji + 平台名 + HTTP`，`!` 前缀表示严格封控）；§4.6 重写 HTTP 配置规范 |
+| 设计决策 | HTTP 使用 `select` 类型（非 load-balance），通过引用 32.x 组实现节点跟随；国内平台与国内兜底允许 DIRECT |
+| 调试流程 | 新增 §5.4 HTTP 调试（连通性验证、403 决策树、curl_cffi 示例） |
+| 配置主文件 | `configs/v7.yaml` |
 
 ### v6（2026-04-12）
 
